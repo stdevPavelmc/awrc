@@ -4,3 +4,6 @@
 [submodule "lib/ESPAsyncTCP"]
 	path = lib/ESPAsyncTCP
 	url = https://github.com/me-no-dev/ESPAsyncTCP
+[submodule "lib/ESPAsync_WiFiManager"]
+	path = lib/ESPAsync_WiFiManager
+	url = https://github.com/khoih-prog/ESPAsync_WiFiManager.git
