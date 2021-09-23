@@ -4,3 +4,9 @@
 [submodule "lib/ESPAsyncTCP"]
 	path = lib/ESPAsyncTCP
 	url = https://github.com/me-no-dev/ESPAsyncTCP
+[submodule "lib/CRCx"]
+	path = lib/CRCx
+	url = https://github.com/hideakitai/CRCx.git
+[submodule "lib/arduino-timer"]
+	path = lib/arduino-timer
+	url = https://github.com/contrem/arduino-timer/
