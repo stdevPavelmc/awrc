@@ -31,4 +31,24 @@
 #define MAXELEVATION 72.0
 #define MINELEVATION 0.0
 
+// EEPROM size
+#define EES 22
+
+// config Struct
+typedef struct
+{
+    float azdratio;
+    float eldratio;
+    int azpulses;
+    int elpulses;
+    uint32_t crc32;
+} Config;
+
+// autosave interval (in seconds)
+#define AUTOSAVE_INTERVAL 30
+
+// default values for config (only re az/el delta ratio)
+#define DEF_AZDRATIO 45.0;
+#define DEF_ELDRATIO 22.5;
+
 #endif // CONFIG_H
