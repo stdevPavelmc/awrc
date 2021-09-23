@@ -6,7 +6,7 @@
 // libraries
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
-#include <AsyncElegantOTA.h>
+#include <ESPAsyncWebServer.h>
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
 #include <DNSServer.h>
@@ -21,10 +21,6 @@ AsyncWebServer webServer(80);
 static std::vector<AsyncClient *> clients; // a list to hold all clients
 
 /****************************************************/
-
-// Wifi default credentials for the softAP if no wifi
-const char *ssid = APSSID;
-const char *password = APPSK;
 
 // position variables
 
@@ -51,9 +47,12 @@ volatile sint8 eldir = 0; //  1 = up / 0 = stoped / -1 = down
 float azdratio = 43.055555556; // tentative value
 float eldratio = 21.527777778; // tentative value
 
-// limits flags
+// flags on code
+// limits
 volatile bool azlimit = 0;
 volatile bool ellimit = 0;
+// is parking
+bool isparking = false;
 
 /*****************************
  * Miscelaneous functions
@@ -303,7 +302,15 @@ void full_stop()
 // parking
 void parking()
 {
+    // debug
+#ifdef DEBUG
     Serial.println("K");
+#endif
+
+    // move to az =0 / el = 0 with no error, 0,000 flat!
+    isparking = true;
+    tazimuth = 0;
+    televation = 0;
 }
 
 // move to speed
@@ -447,6 +454,11 @@ void calc_position()
         if (digitalRead(MDOWN) == 1)
             elevation = MINELEVATION;
     }
+
+    // parking
+    if ((azlimit == 1) and (ellimit == 1))
+        if (isparking)
+            isparking = false;
 }
 
 // update the real positions from pulses
@@ -483,11 +495,11 @@ void need2move_az(float delta)
     sint8 oldazdir = azdir;
 
     // limits hit: STOP!
-    // if (azlimit == 1)
-    //     az_stop();
+    if (azlimit == 1)
+        az_stop();
 
     // need to move
-    if (abs(delta) > minerror)
+    if ((abs(delta) > minerror) or (isparking))
     {
         // debug
 #ifdef DEBUG
@@ -521,11 +533,11 @@ void need2move_el(float delta)
     sint8 oldeldir = eldir;
 
     // limits hit: full STOP
-    // if (ellimit == 1)
-    //     el_stop();
+    if (ellimit == 1)
+        el_stop();
 
     // need to move
-    if (abs(delta) > minerror)
+    if ((abs(delta) > minerror) or (isparking))
     {
         // debug
 #ifdef DEBUG
@@ -747,8 +759,6 @@ void webserver_setup()
         request->send(200, "text/plain", "Hi! I am ESP8266.");
     });
 
-    // OTA settings
-    AsyncElegantOTA.begin(&webServer, "admin", "Mi rotor!"); // Start ElegantOTA
     webServer.begin();
     Serial.println("HTTP server started");
 }
