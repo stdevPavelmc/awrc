@@ -233,16 +233,16 @@ void set_position(String data)
     float e = getValue(data, 32, 2).toFloat();
 
     // numbers limits
-    if (a > 360)
-        a = 360;
-    if (a < 0)
-        a = 0;
-    if (e > 90)
-        e = 90;
-    if (e < 0)
-        e = 0;
+    if (a > MAXAZIMUTH)
+        a = MAXAZIMUTH;
+    if (a < MINAZIMUTH)
+        a = MINAZIMUTH;
+    if (e > MAXELEVATION)
+        e = MAXELEVATION;
+    if (e < MINELEVATION)
+        e = MINELEVATION;
 
-    // finaly set them on the env
+    // finaly set them on the env as target
     tazimuth = a;
     televation = e;
 
@@ -258,14 +258,14 @@ void set_position(String data)
 // get position
 String get_position()
 {
-    Serial.println("p");
+    // build the response string
     char az[8];
     char el[8];
     dtostrf(azimuth, 3, 2, az);
     dtostrf(elevation, 3, 2, el);
     String azim = String(az);
     String elev = String(el);
-    String result = azim + String("\n") + elev;
+    String result = String("p\n") + azim + String("\n") + elev;
     result.replace(".", ",");
     return result;
 }
@@ -291,7 +291,11 @@ void full_stop()
 
     // target = actual
     tazimuth = azimuth;
-    televation = elevation;
+    televation = elevation;\
+
+    // stop parking if set
+    if (isparking)
+        isparking = false;
 
     // debug
 #ifdef DEBUG
