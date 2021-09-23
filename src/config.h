@@ -1,6 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/******** DEBUG FLAG **********/
+#define DEBUG 1
+
 /************ TCP/IP settings ****************/
 #define TCP_PORT 4533   // default for rotctld
 
