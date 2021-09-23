@@ -6,19 +6,26 @@
 
 /************ PIN definitions ****************/
 // Outputs movement
-#define MRIGHT D5
-#define MLEFT D6
-#define MUP D7
-#define MDOWN D8
+#define MRIGHT  14 // D5
+#define MLEFT   12 // D6
+#define MUP     13 // D7
+#define MDOWN   15 // D8
 
-// Input movement interrupts
-#define IIAZ SD3
-#define IIEL SD2
+// Input movement interrupts (change)
+#define IIAZ 10 // SD3
+#define IIEL  9 // SD2
 
 // movement current sensor
-#define ISMOVING D1
+#define AZLIMIT 5 // D1
+#define ELLIMIT 4 // D2
 
 // Rotor transformer relay
-#define TRAFOON D2
+#define TRAFOON 0 // D3
+
+/************* Polar coordinates limits ****/
+#define MAXAZIMUTH 360.0
+#define MINAZIMUTH 0.0
+#define MAXELEVATION 72.0
+#define MINELEVATION 0.0
 
 #endif // CONFIG_H
