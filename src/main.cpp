@@ -4,19 +4,30 @@
 #endif
 
 // libraries
-#include <ESPAsync_WiFiManager.h> //https://github.com/khoih-prog/ESPAsync_WiFiManager
 #include <ESP8266WiFi.h>
 #include <ESPAsyncTCP.h>
+#include <AsyncElegantOTA.h>
+#include <ESP8266WiFiMulti.h>
+#include <ArduinoOTA.h>
 #include <DNSServer.h>
 #include <vector>
 
 #include "config.h"
+
+ESP8266WiFiMulti wifiMulti;
 
 static DNSServer DNS;
 AsyncWebServer webServer(80);
 static std::vector<AsyncClient *> clients; // a list to hold all clients
 
 /****************************************************/
+
+// Wifi default credentials for the softAP if no wifi
+const char *ssid = APSSID;
+const char *password = APPSK;
+
+// position variables
+
 // actual values
 float azimuth = 0.0;
 float elevation = 0.0;
@@ -75,6 +86,10 @@ String getValue(String data, char separator, int index)
 // stop azimuth movement
 void az_stop()
 {
+    // reset target = actual
+    tazimuth = azimuth;
+
+    // full motor stop
     digitalWrite(MRIGHT, LOW);
     digitalWrite(MLEFT, LOW);
 
@@ -83,11 +98,20 @@ void az_stop()
 
     // dir update
     azdir = 0;
+
+    // debug
+#ifdef DEBUG
+    Serial.println("AZ STOP");
+#endif
 }
 
 // stop elevation movement
 void el_stop()
 {
+    // reset target = actual
+    televation = elevation;
+
+    // full motor stop
     digitalWrite(MUP, LOW);
     digitalWrite(MDOWN, LOW);
 
@@ -96,6 +120,11 @@ void el_stop()
 
     // dir update
     eldir = 0;
+
+// debug
+#ifdef DEBUG
+    Serial.println("EL STOP");
+#endif
 }
 
 // move right
@@ -114,6 +143,11 @@ void move_right()
 
     // dir update
     azdir = 1;
+
+// debug
+#ifdef DEBUG
+    Serial.println("MOVE RIGHT");
+#endif
 }
 
 // move left
@@ -132,6 +166,11 @@ void move_left()
 
     // dir update
     azdir = -1;
+
+// debug
+#ifdef DEBUG
+    Serial.println("MOVE LEFT");
+#endif
 }
 
 // move up
@@ -150,6 +189,11 @@ void move_up()
 
     // dir update
     eldir = 1;
+
+// debug
+#ifdef DEBUG
+    Serial.println("MOVE UP");
+#endif
 }
 
 // move down
@@ -168,6 +212,11 @@ void move_down()
 
     // dir update
     eldir = -1;
+
+    // debug
+#ifdef DEBUG
+    Serial.println("MOVE DOWN");
+#endif
 }
 
 /************************************************
@@ -198,10 +247,13 @@ void set_position(String data)
     tazimuth = a;
     televation = e;
 
+    // debug
+#ifdef DEBUG
     Serial.print("P ");
-    Serial.print(azimuth);
+    Serial.print(tazimuth);
     Serial.print(" ");
-    Serial.println(elevation);
+    Serial.println(televation);
+#endif
 }
 
 // get position
@@ -222,10 +274,30 @@ String get_position()
 // full stop
 void full_stop()
 {
+#ifdef DEBUG
     Serial.println("S");
+#endif
 
-    az_stop();
-    el_stop();
+    // motors
+    // az
+    digitalWrite(MRIGHT, LOW);
+    digitalWrite(MLEFT, LOW);
+    // el
+    digitalWrite(MUP, LOW);
+    digitalWrite(MDOWN, LOW);
+
+    // dirs
+    azdir = 0;
+    eldir = 0;
+
+    // target = actual
+    tazimuth = azimuth;
+    televation = elevation;
+
+    // debug
+#ifdef DEBUG
+    Serial.println("FULL STOP");
+#endif
 }
 
 // parking
@@ -274,8 +346,12 @@ String msg_handle(char *data)
         break;
     }
 
-    //Serial.println(data);
+// debug
+#ifdef DEBUG
     Serial.println(result);
+#endif
+
+    // client answer
     return result;
 }
 
@@ -290,9 +366,14 @@ static void handleError(void *arg, AsyncClient *client, int8_t error)
 
 static void handleData(void *arg, AsyncClient *client, void *data, size_t len)
 {
-    char buff[32];
-    memset(buff, '\0', 32);
-    sprintf(buff, "%s", data);
+    // prepare buffers
+    char buff[18];
+    memset(buff, '\0', 18);
+    char reply[32];
+    memset(reply, '\0', 32);
+
+    // copy only the starting 18 chars of the payload 
+    memcpy(buff, data, len);
 
     // send the data to the handle function
     String answer = msg_handle(buff);
@@ -300,8 +381,7 @@ static void handleData(void *arg, AsyncClient *client, void *data, size_t len)
     // reply to client
     if (client->space() > 32 && client->canSend())
     {
-        char reply[32];
-        sprintf(reply, "%s\n", answer.c_str());
+        memcpy(reply, answer.c_str(), strlen(answer.c_str()));
         client->add(reply, strlen(reply));
         client->send();
     }
@@ -319,7 +399,7 @@ static void handleTimeOut(void *arg, AsyncClient *client, uint32_t time)
 
 static void handleNewClient(void *arg, AsyncClient *client)
 {
-    Serial.printf("\n new client has been connected to server, ip: %s", client->remoteIP().toString().c_str());
+    Serial.printf("\n new client has been connected to server, ip: %s\n", client->remoteIP().toString().c_str());
 
     // add to list
     clients.push_back(client);
@@ -403,12 +483,18 @@ void need2move_az(float delta)
     sint8 oldazdir = azdir;
 
     // limits hit: STOP!
-    if (azlimit == 1)
-        az_stop();
+    // if (azlimit == 1)
+    //     az_stop();
 
     // need to move
     if (abs(delta) > minerror)
     {
+        // debug
+#ifdef DEBUG
+        Serial.print("Az diff: ");
+        Serial.println(delta);
+#endif
+      
         // ok, we need to move if no limits are hit
         if ((oldazdir != 1) and (delta > 0))
         {
@@ -435,12 +521,18 @@ void need2move_el(float delta)
     sint8 oldeldir = eldir;
 
     // limits hit: full STOP
-    if (ellimit == 1)
-        el_stop();
+    // if (ellimit == 1)
+    //     el_stop();
 
     // need to move
     if (abs(delta) > minerror)
     {
+        // debug
+#ifdef DEBUG
+        Serial.print("El diff: ");
+        Serial.println(delta);
+#endif
+
         // ok, we need to move if no limits are hit
         if ((oldeldir != 1) and (delta > 0))
         {
@@ -463,12 +555,14 @@ void need2move_el(float delta)
 // check if we need to move and activate the corresponding motors
 void  need2move()
 {
-    // azimuth
+    // azimuth difference
     float daz = tazimuth - azimuth;
+    // move if needed
     need2move_az(daz);
 
     // elevation
     float del = televation - elevation;
+    // move if needed
     need2move_el(del);
 }
 
@@ -505,32 +599,23 @@ void pin_setup()
 // wifi config
 void wifi_config()
 {
-    Serial.print("\nStarting Async_AutoConnect_ESP8266_minimal on\n");
-    Serial.print(" ");
-    Serial.println(ARDUINO_BOARD);
-    Serial.print("Version ");
-    Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
+    WiFi.mode(WIFI_STA);
+    wifiMulti.addAP("pavel", "1234567890a");
+    wifiMulti.addAP("CO7WT", "Xilantr0!!!");
 
-    // must set this as it changed on arduino framework v3
-    WiFi.persistent(true);
-
-    // instantiate wifi manager
-    ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &DNS, "AWRC");
-    //ESPAsync_wifiManager.resetSettings();   //reset saved settings
-
-    // call wifi manager
-    ESPAsync_wifiManager.autoConnect("AWRC");
-
-    // check
-    if (WiFi.status() == WL_CONNECTED)
+    Serial.println("Connecting to Wifi...");
+    if (wifiMulti.run() == WL_CONNECTED)
     {
-        Serial.print(F("Connected. Local IP: "));
+        Serial.println("");
+        Serial.println("WiFi connected");
+        Serial.println("IP address: ");
         Serial.println(WiFi.localIP());
     }
     else
     {
-        Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
+        Serial.println("No connection detected...");
     }
+    
 }
 
 // tcp socket to sumulate a rotctld
@@ -541,12 +626,76 @@ void rotctld_setup()
     tcpserver->begin();
 }
 
+// ota setup
+void ota_setup()
+{
+    ArduinoOTA.onStart([]() {
+        String type;
+
+        if (ArduinoOTA.getCommand() == U_FLASH)
+        {
+
+            type = "sketch";
+        }
+        else
+        {
+            // U_FS
+
+            type = "filesystem";
+        }
+
+        // NOTE: if updating FS this would be the place to unmount FS using FS.end()
+
+        Serial.println("Start updating " + type);
+    });
+
+    ArduinoOTA.onEnd([]() {
+        Serial.println("\nEnd");
+    });
+
+    ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+        Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    });
+
+    ArduinoOTA.onError([](ota_error_t error) {
+
+		Serial.printf("Error[%u]: ", error);
+
+		if (error == OTA_AUTH_ERROR)
+		{
+
+			Serial.println("Auth Failed");
+		}
+		else if (error == OTA_BEGIN_ERROR)
+		{
+
+			Serial.println("Begin Failed");
+		}
+		else if (error == OTA_CONNECT_ERROR)
+		{
+
+			Serial.println("Connect Failed");
+		}
+		else if (error == OTA_RECEIVE_ERROR)
+		{
+
+			Serial.println("Receive Failed");
+		}
+		else if (error == OTA_END_ERROR)
+		{
+
+			Serial.println("End Failed");
+		} });
+
+    ArduinoOTA.begin();
+}
+
 /*********************
  * Interrupts part
 **********************/
 
 // rotation azimuth interrupts
-void azinterrupt()
+void IRAM_ATTR azinterrupt()
 {
     if (azdir > 0)
         azpulses += 1;
@@ -555,7 +704,7 @@ void azinterrupt()
 }
 
 // rotation elevation interrupt
-void elinterrupt()
+void IRAM_ATTR elinterrupt()
 {
     if (eldir > 0)
         elpulses += 1;
@@ -564,13 +713,13 @@ void elinterrupt()
 }
 
 // az limit hit
-void azlimhit()
+void IRAM_ATTR azlimhit()
 {
     azlimit = !digitalRead(AZLIMIT);
 }
 
 // el limit hit
-void ellimhit()
+void IRAM_ATTR ellimhit()
 {
     ellimit = !digitalRead(ELLIMIT);
 }
@@ -587,6 +736,23 @@ void interrupt_setup()
     attachInterrupt(digitalPinToInterrupt(ELLIMIT), ellimhit, CHANGE);
 }
 
+/****************************
+ * Web server routines
+******************************/
+
+// setup the web server
+void webserver_setup()
+{
+    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "Hi! I am ESP8266.");
+    });
+
+    // OTA settings
+    AsyncElegantOTA.begin(&webServer, "admin", "Mi rotor!"); // Start ElegantOTA
+    webServer.begin();
+    Serial.println("HTTP server started");
+}
+
 /***********************************************************************************/
 
 // setup
@@ -594,6 +760,8 @@ void setup()
 {
     Serial.begin(115200);
     delay(200);
+
+    Serial.println("\n\nArduino Wireless rotor controller v0.1 booting...\n");
 
     // wifi config
     wifi_config();
@@ -606,6 +774,16 @@ void setup()
 
     // interrupt declaration
     interrupt_setup();
+
+    // setup web server
+    webserver_setup();
+
+    // OTA setup
+    ota_setup();
+
+    // free sketch space
+    Serial.print("\nFree space: ");
+    Serial.println(ESP.getFreeSketchSpace());
 }
 
 // main loop
@@ -616,4 +794,10 @@ void loop()
 
     // need to move? (always AFTER the update_position one)
     need2move();
+
+    // multiwifi run
+    wifiMulti.run();
+
+    // ota handler
+    ArduinoOTA.handle();
 }
