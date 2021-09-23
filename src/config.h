@@ -25,7 +25,7 @@
 // Rotor transformer relay
 #define TRAFOON 0 // D3
 
-/************* Polar coordinates limits ****/
+// Polar coordinates limits
 #define MAXAZIMUTH 360.0
 #define MINAZIMUTH 0.0
 #define MAXELEVATION 72.0

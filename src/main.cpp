@@ -53,6 +53,7 @@ volatile bool azlimit = 0;
 volatile bool ellimit = 0;
 // is parking
 bool isparking = false;
+bool iscalibrating = false;
 
 /*****************************
  * Miscelaneous functions
@@ -317,10 +318,72 @@ void parking()
     televation = 0;
 }
 
-// move to speed
-void move_to(String data)
+// make a calibration cycle
+void calibration()
 {
-    Serial.println("M");
+    // debug
+#ifdef DEBUG
+    Serial.println("c");
+    Serial.println("Blocking parking, please wait...");
+#endif
+
+    // make a calibration cycle
+    iscalibrating = true;
+
+    // part one: blocking parking
+    parking();
+    while (isparking)
+    {
+        // delay until its parked
+        delay(1000);
+        Serial.print(".");
+    }
+
+    // end the printing
+    Serial.println(".");
+    Serial.println("Done parking");
+    Serial.println("Blocking calibration azimuth...");
+
+    // reset pulses
+    azpulsecount = 0;
+    elpulsecount = 0;
+
+    // start the movement and wait a little to allow for reseting the limit
+    move_right();
+    delay(1000);
+
+    // blocking movement azimuth
+    while (!azlimit)
+    {
+        delay(1000);
+        Serial.print(".");
+    }
+
+    // end the printing
+    Serial.println(".");
+    Serial.println("Blocking calibration elevation...");
+
+    // start the movement and wait a little to allow for reseting the limit
+    move_up();
+    delay(1000);
+
+    // blocking movement azimuth
+    while (!ellimit)
+    {
+        delay(1000);
+        Serial.print(".");
+    }
+
+    // end the printing
+    Serial.println(".");
+    Serial.println("Done");
+
+    iscalibrating = false;
+
+    // calculation of the ration
+    // azdratio & eldratio
+    azdratio = azpulsecount / (MAXAZIMUTH - MINAZIMUTH);
+    eldratio = elpulsecount / (MAXELEVATION - MINELEVATION);
 }
 
 // handle the client messages
@@ -330,6 +393,11 @@ String msg_handle(char *data)
     String result = String("RPRT 0");
     char command = d.charAt(0);
 
+    // if calibrating just reply ok and return
+    if (iscalibrating)
+        return String(result);
+
+    // select the action depending on the command
     switch (command)
     {
     // set position
@@ -348,9 +416,9 @@ String msg_handle(char *data)
     case 75: // K
         parking();
         break;
-    // move to position
-    case 77: // M
-        move_to(d);
+    // make a calibration cycle
+    case 99: // c
+        calibration();
         break;
 
     default:
