@@ -11,14 +11,19 @@
 #include <ArduinoOTA.h>
 #include <DNSServer.h>
 #include <vector>
+#include <arduino-timer.h>
+
+#include "eeprom.h"
 
 #include "config.h"
 
+// instantiating
+Config conf;
 ESP8266WiFiMulti wifiMulti;
-
 static DNSServer DNS;
 AsyncWebServer webServer(80);
-static std::vector<AsyncClient *> clients; // a list to hold all clients
+static std::vector<AsyncClient *> clients;
+auto timer = timer_create_default(); // create a timer with default settings
 
 /****************************************************/
 
@@ -44,8 +49,8 @@ volatile sint8 azdir = 0; //  1 = right / 0 = stoped / -1 = left
 volatile sint8 eldir = 0; //  1 = up / 0 = stoped / -1 = down
 
 // pulses/degrees ratio
-float azdratio = 43.055555556; // tentative value
-float eldratio = 21.527777778; // tentative value
+float azdratio = 1; // tentative value (see config.h)
+float eldratio = 1; // tentative value (see config.h)
 
 // flags on code
 // limits
@@ -384,6 +389,9 @@ void calibration()
     // azdratio & eldratio
     azdratio = azpulsecount / (MAXAZIMUTH - MINAZIMUTH);
     eldratio = elpulsecount / (MAXELEVATION - MINELEVATION);
+
+    // save conf
+    saveConf(conf);
 }
 
 // handle the client messages
@@ -774,12 +782,19 @@ void ota_setup()
     ArduinoOTA.begin();
 }
 
-/*********************
+// timed save
+bool confSave(void *)
+{
+    saveConf(conf);
+    return true; // repeat it?
+}
+
+    /*********************
  * Interrupts part
 **********************/
 
-// rotation azimuth interrupts
-void IRAM_ATTR azinterrupt()
+    // rotation azimuth interrupts
+    void IRAM_ATTR azinterrupt()
 {
     if (azdir > 0)
         azpulses += 1;
@@ -824,6 +839,21 @@ void interrupt_setup()
  * Web server routines
 ******************************/
 
+// 404 handler >  redir to /
+void notFound(AsyncWebServerRequest *request)
+{
+    request->redirect("/");
+}
+
+// index or root of the webserver
+void serveIndex(AsyncWebServerRequest *request)
+{
+    request->send(SPIFFS, "/index.html", String(), false, processor);
+#ifdef D
+    Serial.println("/ ");
+#endif
+}
+
 // setup the web server
 void webserver_setup()
 {
@@ -866,6 +896,12 @@ void setup()
     // free sketch space
     Serial.print("\nFree space: ");
     Serial.println(ESP.getFreeSketchSpace());
+
+    // load config
+    loadConf(conf);
+
+    // timer ticks to save the position every some time
+    timer.every(AUTOSAVE_INTERVAL * 1000, confSave);
 }
 
 // main loop
@@ -882,4 +918,7 @@ void loop()
 
     // ota handler
     ArduinoOTA.handle();
+
+    // timer tick
+    timer.tick(); 
 }
