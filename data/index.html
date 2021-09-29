@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Arduino Wireless Rotor controller</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <link rel="icon" type="image/x-icon" href="favimap.ico" />
+    </head>
+    <body>
+        <div class="page">
+            <canvas class="box" id="map">
+                <p>Sorry, canvas not supported on this browser</p>
+            </canvas>
+            <div class="box" id="buttons">
+                <div class="status">
+                    <div class="status_row">
+                        <p class="label">Target: </p>
+                        <p class="data" id="target">Azimuth: 12.6 Elevation: 23.1 </p>
+                    </div>
+                    <div class="status_row">
+                        <p class="label">Actual: </p>
+                        <p class="data" id="actual">Azimuth: 12.6 Elevation: 23.1</p>
+                    </div>
+                </div>
+                <form id="form_buttons" action="#">
+                    <input type="button" name="calibrate" id="calibrate" onclick="send('calibrate')" value="CALIBRATE" />
+                    <input type="button" name="stop" id="stop" onclick="send('stop')" value="STOP" />
+                    <input type="button" name="park" id="park" onclick="send('park')" value="PARK" />
+                    <input type="button" name="standby" id="standby" onclick="send('standby')" value="STANDBY" />
+                </form>
+                <div id="input">
+                    <span>
+                        Azimuth:
+                    </span>
+                    <input type="number" id="az" value="180" onchange="draw();" /><br />
+                    <span>
+                        Elevation:
+                    </span>
+                    <input type="number" id="el" value="45" onchange="draw();" />
+                    <div display="none">
+                        <input type="number" id="taz" value="0" onchange="draw();" /><br />
+                        <input type="number" id="tel" value="0" onchange="draw();" /><br />
+                    </div>
+                </div>
+            </div>
+            <div class="box" id="info">
+                <textarea class="fill" id="infobox"></textarea>
+            </div>
+        </div>
+    </body>
+    <script lang="javascript" defer>
+        // update the divs
+        function show()
+        {
+            var target = document.getElementById('target');
+            var actual = document.getElementById('actual');
+            var az = document.getElementById("az");
+            var el = document.getElementById("el");
+            var taz = document.getElementById("taz");
+            var tel = document.getElementById("tel");
+            target.innerHTML = "Azimuth: " + taz.value + "<br />Elevation: " + tel.value;
+            actual.innerHTML = "Azimuth: " + az.value + "<br />Elevation: " + el.value;
+        }
+
+        // draw the polar coordinates with the two circle
+        function draw()
+        {
+            // update the text 
+            show();
+
+            var canvas = document.getElementById('map');
+            if (canvas.getContext) {
+                var ctx = canvas.getContext('2d');
+            } else {
+                alert("This browser does not support canvas?");
+                return;
+            }
+
+            // force width as base
+            canvas.height = canvas.width;
+            var center = canvas.width / 2;
+            var full = center * 0.9;
+
+            // clean and move the coordinates to the center position
+            ctx.clearRect(0, 0, center * 2, center * 2);
+            ctx.translate(center, center);
+            ctx.save();
+
+            // horizontal line
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'gray';
+            ctx.lineCap = 'round';
+            ctx.moveTo(-full, 0);
+            ctx.lineTo(full, 0);
+            ctx.closePath();
+            ctx.stroke();
+            // vertical line
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'gray';
+            ctx.lineCap = 'round';
+            ctx.moveTo(0, -full);
+            ctx.lineTo(0, full);
+            ctx.closePath();
+            ctx.stroke();
+
+            // circles
+            ctx.beginPath();
+            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = 'gray';
+            ctx.arc(0, 0, full * 0.3, 0, Math.PI * 2, true);
+            ctx.arc(0, 0, full * 0.6, 0, Math.PI * 2, true);
+            ctx.arc(0, 0, full * 0.9, 0, Math.PI * 2, true);
+            ctx.closePath();
+            ctx.stroke();
+
+            // letters of the cardinal points
+            var tw = 20;
+            ctx.beginPath();
+            ctx.fillStyle = 'navy';
+            ctx.font = 'bold 14px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText("N", 0, -full * 1.05, tw);
+            ctx.fillText("S", 0, full * 1.05, tw);
+            ctx.fillText("W", -full * 1.05, 0, tw);
+            ctx.fillText("E", full * 1.05, 0, tw);
+            ctx.closePath();
+            ctx.stroke();
+
+            // save it
+            ctx.save();
+
+            // get the coordinates of the real position
+            var az = document.getElementById("az");
+            var el = document.getElementById("el");
+            // calc radius as relative to diameter
+            var radius = full * 0.9 * (90 - el.value) / 90
+            var pos = polarToCartesian(0, 0, radius, az.value);
+
+            // real value
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'red';
+            ctx.arc(pos.x, pos.y, 2 + 0.05 * (90 - el.value), 0, 2 * Math.PI, true);
+            ctx.closePath();
+            ctx.stroke();
+
+            // get the coordinates of the target
+            var taz = document.getElementById("taz");
+            var tel = document.getElementById("tel");
+            // calc radius as relative to diameter
+            var tradius = full * 0.9 * (90 - tel.value) / 90
+            var tpos = polarToCartesian(0, 0, tradius, taz.value);
+
+            // real value
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.arc(tpos.x, tpos.y, 5, 0, 2 * Math.PI, true);
+            ctx.closePath();
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+
+            // save it
+            ctx.save();
+        }
+
+        // from stack overflow... ;)  
+        function polarToCartesian(centerX, centerY, radius, angleInDegrees)
+        {
+            var angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+
+            return {
+                x: centerX + (radius * Math.cos(angleInRadians)),
+                y: centerY + (radius * Math.sin(angleInRadians))
+            };
+        }
+
+        // get some answer form a backend endpoint
+        function ask(backend)
+        {
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    return this.responseText;
+                } else {
+                    return null;
+                }
+            };
+            xhttp.open("GET", backend, true);
+            xhttp.send();
+        }
+
+        // call a particular backend and update the innerhtml to a taget id element
+        function updateOnAsk(backend, target) {
+            document.getElementById(target).innerHTML = ask(backend);
+        }
+
+        function main()
+        {
+            //update the position
+            setInterval(function () {
+                // refes
+                var az = document.getElementById("az");
+                var el = document.getElementById("el");
+                var taz = document.getElementById("taz");
+                var tel = document.getElementById("tel");
+
+                // get it
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function () {
+                    if (this.readyState == 4 && this.status == 200) {
+                        // all good parse
+                        var p = JSON.parse(this.responseText);
+                        az.value = p.az;
+                        el.value = p.el
+                        taz.value = p.taz;
+                        tel.value = p.tel;
+
+                        console.log("Az: " + p.az + " El: " + p.el + "/ tAz: " + p.taz + " tEl: " + p.tel);
+
+                        var e = document.createEvent('HTMLEvents');
+                        e.initEvent('change', false, false);
+                        az.dispatchEvent(e);
+                    }
+                };
+                xhttp.open("GET", "./p", true);
+                xhttp.send();
+            }, 2000);
+
+            
+            draw();
+        }
+
+        // trigger execution
+        window.onload = main();
+    </script>
+</html>

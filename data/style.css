@@ -1,0 +1,104 @@
+html {
+    font-family: Arial;
+    display: inline-block;
+    margin: 0px auto;
+    text-align: center;
+}
+
+.body {
+    background-color: white;
+    color: black;
+    text-align: left;
+    max-width: max-content;
+    height: 550px;
+    max-height: 550px;
+}
+
+h1 {
+    color: #0F3376;
+    padding: 2vh;
+}
+
+p {
+    font-size: 1.5rem;
+}
+
+.units {
+    font-size: 1.2rem;
+}
+
+.page {
+    border: 1px solid #0F3376;
+    text-align: center;
+    width: 1600px;
+    overflow: auto;
+    display: inline-flex;
+    flex-direction: row;
+    justify-content: center;
+    padding: 10px;
+}
+
+.box {
+    float: left;
+    height: 500px;
+    width: 500px;
+    border: 1px solid #0F3376;
+    padding: 10px;
+    display: flex;
+    margin: auto;
+}
+
+.fill {
+    width: 100%;
+    height: inherit;
+}
+
+.status {
+    width: 100%;
+    padding-bottom: 20px;
+    display:    flex;
+}
+
+.status_row {
+    width: 100%;
+        display: block;
+        float: left;
+}
+
+#map {
+    /* background-image: url("back.png");
+    background-position: center;
+    background-repeat: no-repeat; */
+}
+
+#buttons {
+    display: flow-root;
+}
+
+#form_buttons {
+    display: block;
+}
+
+#info {
+    display: inline;
+}
+
+.label {
+    font-size: 1.5rem;
+    padding-right: 10px;
+    margin: 0px;
+}
+
+.data {
+    font-size: 1.5rem;
+    padding: 0px;
+    margin: 0px;
+}
+
+#circle {
+    display: none;
+}
+
+#crosshair {
+    display: none;
+}
