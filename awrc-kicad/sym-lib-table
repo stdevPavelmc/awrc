@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name wemos_vlad)(type Legacy)(uri ${KIPRJMOD}/wemos_vlad.lib)(options "")(descr ""))
+)

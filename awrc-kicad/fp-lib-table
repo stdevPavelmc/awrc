@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name awrc)(type KiCad)(uri ${KIPRJMOD}/awrc.pretty)(options "")(descr ""))
+  (lib (name wemos_clone)(type KiCad)(uri ${KIPRJMOD}/wemos_clone.pretty)(options "")(descr ""))
+)
