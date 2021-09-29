@@ -12,9 +12,10 @@
 #include <DNSServer.h>
 #include <vector>
 #include <arduino-timer.h>
+#include "LittleFS.h"
 
+// own / local
 #include "eeprom.h"
-
 #include "config.h"
 
 // instantiating
@@ -789,7 +790,7 @@ bool confSave(void *)
     return true; // repeat it?
 }
 
-    /*********************
+/*********************
  * Interrupts part
 **********************/
 
@@ -839,27 +840,112 @@ void interrupt_setup()
  * Web server routines
 ******************************/
 
+// replace in a simplified jinja2 way
+String processor(const String &var)
+{
+    // debug
+#ifdef DEBUG
+    Serial.print("Processor: ");
+    Serial.println(var);
+#endif
+
+    // azimuth
+    if (var == "azimuth")
+        return String(azimuth);
+
+    // elavation
+    if (var == "elevation")
+        return String(elevation);
+
+    // tazimuth
+    if (var == "tazimuth")
+        return String(tazimuth);
+
+    // telavation
+    if (var == "televation")
+        return String(televation);
+
+    // default returns
+    return String("");
+}
+
 // 404 handler >  redir to /
 void notFound(AsyncWebServerRequest *request)
 {
-    request->redirect("/");
+    request->send(404);
+}
+
+// ico
+void serveIcon(AsyncWebServerRequest *request)
+{
+    request->send(LittleFS, "/favicon.ico", "image/x-icon");
+#ifdef DEBUG
+    Serial.println("/ico");
+#endif
 }
 
 // index or root of the webserver
 void serveIndex(AsyncWebServerRequest *request)
 {
-    request->send(SPIFFS, "/index.html", String(), false, processor);
-#ifdef D
+    request->send(LittleFS, "/index.html", String(), false, processor);
+#ifdef DEBUG
     Serial.println("/ ");
 #endif
 }
 
+// css
+void serveStyle(AsyncWebServerRequest *request)
+{
+    request->send(LittleFS, "/style.css", "text/css");
+#ifdef DEBUG
+    Serial.println("/css");
+#endif
+}
+
+// back
+void serveBackMap(AsyncWebServerRequest *request)
+{
+    request->send(LittleFS, "/back.png", "image/x-png");
+#ifdef DEBUG
+    Serial.println("/back");
+#endif
+}
+
+// target coordinates
+void servePosition(AsyncWebServerRequest *request)
+{
+    request->send(LittleFS, "/position.txt", String(), false, processor);
+#ifdef DEBUG
+    Serial.println("/p");
+#endif
+}
+
+
+
 // setup the web server
 void webserver_setup()
 {
-    webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "Hi! I am ESP8266.");
-    });
+    // Route for root / web page
+    webServer.on("/", HTTP_GET, serveIndex);
+    webServer.on("/index.html", HTTP_GET, serveIndex);
+
+    // Route to load favicon file
+    webServer.on("/favicon.ico", HTTP_GET, serveIcon);
+
+    // Route to load style.css file
+    webServer.on("/style.css", HTTP_GET, serveStyle);
+
+    // Route to load back.png file
+    webServer.on("/back.png", HTTP_GET, serveBackMap);
+
+    // Get target position (JSON)
+    webServer.on("/p", HTTP_GET, servePosition);
+
+    // Route to set RELAY on (set it to low)
+    // webServer.on("/on", HTTP_GET, serveOn);
+
+    // not found
+    webServer.onNotFound(notFound);
 
     webServer.begin();
     Serial.println("HTTP server started");
@@ -902,6 +988,13 @@ void setup()
 
     // timer ticks to save the position every some time
     timer.every(AUTOSAVE_INTERVAL * 1000, confSave);
+
+    // FS
+    if (!LittleFS.begin())
+    {
+        Serial.println("An Error has occurred while mounting LittleFS");
+        return;
+    }
 }
 
 // main loop
