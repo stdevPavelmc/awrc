@@ -693,7 +693,7 @@ void pin_setup()
 void wifi_config()
 {
     WiFi.mode(WIFI_STA);
-    wifiMulti.addAP("pavel", "1234567890a");
+    wifiMulti.addAP("termopilas", "QF9vhtwj");
     wifiMulti.addAP("CO7WT", "Xilantr0!!!");
 
     Serial.println("Connecting to Wifi...");
