@@ -18,6 +18,27 @@
 #include "eeprom.h"
 #include "config.h"
 
+// State of the system
+enum States
+{
+    IDLE,
+    TRACKING,
+    CALIBRATING,
+    PARKING,
+    OTA
+};
+
+enum WebCmds 
+{
+    NONE,
+    CAL,
+    STOP,
+    PARK
+};
+
+States state = IDLE;
+WebCmds wcmd = NONE;
+
 // instantiating
 Config conf;
 ESP8266WiFiMulti wifiMulti;
@@ -105,6 +126,9 @@ void az_stop()
     // dir update
     azdir = 0;
 
+    // state
+    state = IDLE;
+
     // debug
 #ifdef DEBUG
     Serial.println("AZ STOP");
@@ -126,6 +150,9 @@ void el_stop()
 
     // dir update
     eldir = 0;
+
+    // state
+    state = IDLE;
 
 // debug
 #ifdef DEBUG
@@ -150,6 +177,9 @@ void move_right()
     // dir update
     azdir = 1;
 
+    // state
+    state = TRACKING;
+
 // debug
 #ifdef DEBUG
     Serial.println("MOVE RIGHT");
@@ -172,6 +202,9 @@ void move_left()
 
     // dir update
     azdir = -1;
+
+    // state
+    state = TRACKING;
 
 // debug
 #ifdef DEBUG
@@ -196,6 +229,9 @@ void move_up()
     // dir update
     eldir = 1;
 
+    // state
+    state = TRACKING;
+
 // debug
 #ifdef DEBUG
     Serial.println("MOVE UP");
@@ -218,6 +254,9 @@ void move_down()
 
     // dir update
     eldir = -1;
+
+    // state
+    state = TRACKING;
 
     // debug
 #ifdef DEBUG
@@ -298,11 +337,14 @@ void full_stop()
 
     // target = actual
     tazimuth = azimuth;
-    televation = elevation;\
+    televation = elevation;
 
     // stop parking if set
     if (isparking)
         isparking = false;
+
+    // state
+    state = IDLE;
 
     // debug
 #ifdef DEBUG
@@ -322,6 +364,9 @@ void parking()
     isparking = true;
     tazimuth = 0;
     televation = 0;
+
+    // state
+    state = PARKING;
 }
 
 // make a calibration cycle
@@ -335,6 +380,9 @@ void calibration()
 
     // make a calibration cycle
     iscalibrating = true;
+
+    // state
+    state = CALIBRATING;
 
     // part one: blocking parking
     parking();
@@ -460,7 +508,7 @@ static void handleData(void *arg, AsyncClient *client, void *data, size_t len)
     char reply[32];
     memset(reply, '\0', 32);
 
-    // copy only the starting 18 chars of the payload 
+    // copy only the starting 18 chars of the payload
     memcpy(buff, data, len);
 
     // send the data to the handle function
@@ -549,7 +597,7 @@ void update_position()
     noInterrupts();
 
     // sum azimuth
-    if (azpulses !=0)
+    if (azpulses != 0)
     {
         azimuth += azpulses;
         azpulses = 0;
@@ -587,7 +635,7 @@ void need2move_az(float delta)
         Serial.print("Az diff: ");
         Serial.println(delta);
 #endif
-      
+
         // ok, we need to move if no limits are hit
         if ((oldazdir != 1) and (delta > 0))
         {
@@ -646,7 +694,7 @@ void need2move_el(float delta)
 }
 
 // check if we need to move and activate the corresponding motors
-void  need2move()
+void need2move()
 {
     // azimuth difference
     float daz = tazimuth - azimuth;
@@ -708,7 +756,6 @@ void wifi_config()
     {
         Serial.println("No connection detected...");
     }
-    
 }
 
 // tcp socket to sumulate a rotctld
@@ -725,15 +772,16 @@ void ota_setup()
     ArduinoOTA.onStart([]() {
         String type;
 
+        // state
+        state = OTA;
+
         if (ArduinoOTA.getCommand() == U_FLASH)
         {
-
             type = "sketch";
         }
         else
         {
             // U_FS
-
             type = "filesystem";
         }
 
@@ -756,27 +804,22 @@ void ota_setup()
 
 		if (error == OTA_AUTH_ERROR)
 		{
-
 			Serial.println("Auth Failed");
 		}
 		else if (error == OTA_BEGIN_ERROR)
 		{
-
 			Serial.println("Begin Failed");
 		}
 		else if (error == OTA_CONNECT_ERROR)
 		{
-
 			Serial.println("Connect Failed");
 		}
 		else if (error == OTA_RECEIVE_ERROR)
 		{
-
 			Serial.println("Receive Failed");
 		}
 		else if (error == OTA_END_ERROR)
 		{
-
 			Serial.println("End Failed");
 		} });
 
@@ -794,8 +837,8 @@ bool confSave(void *)
  * Interrupts part
 **********************/
 
-    // rotation azimuth interrupts
-    void IRAM_ATTR azinterrupt()
+// rotation azimuth interrupts
+void IRAM_ATTR azinterrupt()
 {
     if (azdir > 0)
         azpulses += 1;
@@ -920,29 +963,91 @@ void servePosition(AsyncWebServerRequest *request)
 #endif
 }
 
+// process web commands
+void webCommands()
+{
+    switch (wcmd)
+    {
+    case STOP:
+        wcmd = NONE;
+        full_stop();
+        break;
 
+    case CAL:
+        wcmd = NONE;
+        calibration();
+        break;
+
+    case PARK:
+        wcmd = NONE;
+        parking();
+        break;
+
+    default:
+        break;
+    }
+}
+
+// calibration from the web interface
+void serveCalibration(AsyncWebServerRequest *request)
+{
+    // send ok then start calibration
+    request->send(200, "text/plain", F("ok"));
+
+#ifdef DEBUG
+    Serial.println(F("Doing STOP from the web"));
+#endif
+
+    // set web cmd
+    wcmd = CAL;
+}
+
+// parking from the web interface
+void servePark(AsyncWebServerRequest *request)
+{
+    // send ok then start parking
+    request->send(200, "text/plain", "ok");
+
+#ifdef DEBUG
+    Serial.println("Doing STOP from the web");
+#endif
+
+    // set web cmd
+    wcmd = PARK;
+}
+
+// full stop from the web interface
+void serveStop(AsyncWebServerRequest *request)
+{
+    // send ok then full stop
+    request->send(200, "text/plain", F("ok"));
+
+#ifdef DEBUG
+    Serial.println(F("Doing STOP from the web"));
+#endif
+
+    // set web cmd
+    wcmd = STOP;
+}
 
 // setup the web server
 void webserver_setup()
 {
     // Route for root / web page
     webServer.on("/", HTTP_GET, serveIndex);
+
+    // Static content
     webServer.on("/index.html", HTTP_GET, serveIndex);
-
-    // Route to load favicon file
     webServer.on("/favicon.ico", HTTP_GET, serveIcon);
-
-    // Route to load style.css file
     webServer.on("/style.css", HTTP_GET, serveStyle);
-
-    // Route to load back.png file
-    webServer.on("/back.png", HTTP_GET, serveBackMap);
 
     // Get target position (JSON)
     webServer.on("/p", HTTP_GET, servePosition);
 
-    // Route to set RELAY on (set it to low)
-    // webServer.on("/on", HTTP_GET, serveOn);
+    // Commands
+    webServer.on("/cal", HTTP_GET, serveCalibration);
+    webServer.on("/stop", HTTP_GET, serveStop);
+    webServer.on("/park", HTTP_GET, servePark);
 
     // not found
     webServer.onNotFound(notFound);
@@ -1012,6 +1117,9 @@ void loop()
     // ota handler
     ArduinoOTA.handle();
 
+    // catch web commands
+    webCommands();
+
     // timer tick
-    timer.tick(); 
+    timer.tick();
 }
