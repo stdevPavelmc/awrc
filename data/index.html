@@ -24,10 +24,9 @@
                     </div>
                 </div>
                 <form id="form_buttons" action="#">
-                    <input type="button" name="calibrate" id="calibrate" onclick="send('calibrate')" value="CALIBRATE" />
-                    <input type="button" name="stop" id="stop" onclick="send('stop')" value="STOP" />
-                    <input type="button" name="park" id="park" onclick="send('park')" value="PARK" />
-                    <input type="button" name="standby" id="standby" onclick="send('standby')" value="STANDBY" />
+                    <input class="button" type="button" name="calibrate" id="calibrate" onclick="send('cal');" value="CALIBRATE" />
+                    <input class="button" type="button" name="stop" id="stop" onclick="send('stop')" value="STOP" />
+                    <input class="button" type="button" name="park" id="park" onclick="send('park')" value="PARK" />
                 </form>
                 <div id="input">
                     <span>
@@ -178,24 +177,22 @@
             };
         }
 
-        // get some answer form a backend endpoint
-        function ask(backend)
+        // enviar una acción
+        function send(action)
         {
             var xhttp = new XMLHttpRequest();
             xhttp.onreadystatechange = function () {
                 if (this.readyState == 4 && this.status == 200) {
-                    return this.responseText;
+                    console.log("Button action '" + action + "' ok...");
                 } else {
-                    return null;
+                    console.log("Button action '" + action + "' failed...");
                 }
-            };
-            xhttp.open("GET", backend, true);
-            xhttp.send();
-        }
 
-        // call a particular backend and update the innerhtml to a taget id element
-        function updateOnAsk(backend, target) {
-            document.getElementById(target).innerHTML = ask(backend);
+                // don't reload the page
+                return false;
+            };
+            xhttp.open("GET", "./cmd/" + action, true);
+            xhttp.send();
         }
 
         function main()
