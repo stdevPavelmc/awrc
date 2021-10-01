@@ -631,10 +631,10 @@ void need2move_az(float delta)
     if ((abs(delta) > minerror) or (isparking))
     {
         // debug
-#ifdef DEBUG
-        Serial.print("Az diff: ");
-        Serial.println(delta);
-#endif
+// #ifdef DEBUG
+//         Serial.print("Az diff: ");
+//         Serial.println(delta);
+// #endif
 
         // ok, we need to move if no limits are hit
         if ((oldazdir != 1) and (delta > 0))
@@ -668,11 +668,11 @@ void need2move_el(float delta)
     // need to move
     if ((abs(delta) > minerror) or (isparking))
     {
-        // debug
-#ifdef DEBUG
-        Serial.print("El diff: ");
-        Serial.println(delta);
-#endif
+//         // debug
+// #ifdef DEBUG
+//         Serial.print("El diff: ");
+//         Serial.println(delta);
+// #endif
 
         // ok, we need to move if no limits are hit
         if ((oldeldir != 1) and (delta > 0))
@@ -887,10 +887,10 @@ void interrupt_setup()
 String processor(const String &var)
 {
     // debug
-#ifdef DEBUG
-    Serial.print("Processor: ");
-    Serial.println(var);
-#endif
+// #ifdef DEBUG
+//     Serial.print("Processor: ");
+//     Serial.println(var);
+// #endif
 
     // azimuth
     if (var == "azimuth")
@@ -907,6 +907,10 @@ String processor(const String &var)
     // telavation
     if (var == "televation")
         return String(televation);
+
+    // status
+    if (var == "STATUS")
+        return String(state);
 
     // default returns
     return String("");
@@ -969,18 +973,18 @@ void webCommands()
     switch (wcmd)
     {
     case STOP:
-        wcmd = NONE;
         full_stop();
+        wcmd = NONE;
         break;
 
     case CAL:
-        wcmd = NONE;
         calibration();
+        wcmd = NONE;
         break;
 
     case PARK:
-        wcmd = NONE;
         parking();
+        wcmd = NONE;
         break;
 
     default:
