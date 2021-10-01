@@ -23,6 +23,10 @@
                         <p class="data" id="actual">Azimuth: 12.6 Elevation: 23.1</p>
                     </div>
                 </div>
+                <div class="status">
+                    <span id="s">0</span>
+                    <span id="state">Status: IDLE</span>
+                </div>
                 <form id="form_buttons" action="#">
                     <input class="button" type="button" name="calibrate" id="calibrate" onclick="send('cal');" value="CALIBRATE" />
                     <input class="button" type="button" name="stop" id="stop" onclick="send('stop')" value="STOP" />
@@ -191,7 +195,7 @@
                 // don't reload the page
                 return false;
             };
-            xhttp.open("GET", "./cmd/" + action, true);
+            xhttp.open("GET", "./" + action, true);
             xhttp.send();
         }
 
@@ -204,6 +208,7 @@
                 var el = document.getElementById("el");
                 var taz = document.getElementById("taz");
                 var tel = document.getElementById("tel");
+                var state = document.getElementById("state");
 
                 // get it
                 var xhttp = new XMLHttpRequest();
@@ -216,7 +221,15 @@
                         taz.value = p.taz;
                         tel.value = p.tel;
 
-                        console.log("Az: " + p.az + " El: " + p.el + "/ tAz: " + p.taz + " tEl: " + p.tel);
+                        // status
+                        var s = "IDLE";
+                        if (parseInt(p.status) == 1) { s = "Tracking"; }
+                        if (parseInt(p.status) == 2) { s = "Calibrating"; }
+                        if (parseInt(p.status) == 3) { s = "Parking"; }
+                        if (parseInt(p.status) == 4) { s = "OTA update";}
+                        state.innerHTML = "Status: " + s;
+
+                        console.log("Az: " + p.az + " El: " + p.el + " / tAz: " + p.taz + " tEl: " + p.tel + " / State: " + s);
 
                         var e = document.createEvent('HTMLEvents');
                         e.initEvent('change', false, false);
