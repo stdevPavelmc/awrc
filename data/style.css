@@ -108,3 +108,19 @@ p {
     width: 100px;
     height: 30px;
 }
+
+.status {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+#s {
+    display: none;
+}
+
+#state {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
