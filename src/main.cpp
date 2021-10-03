@@ -10,6 +10,7 @@
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
 #include <DNSServer.h>
+#include <ESP8266mDNS.h>
 #include <vector>
 #include <arduino-timer.h>
 #include "LittleFS.h"
@@ -23,6 +24,7 @@ enum States
 {
     IDLE,
     TRACKING,
+    MANUAL,
     CALIBRATING,
     PARKING,
     OTA
@@ -57,8 +59,6 @@ float elevation = 0.0;
 // target values
 float tazimuth = 0.0;
 float televation = 0.0;
-// minimum error to track
-float minerror = 5.0;
 
 // pulse count vars
 int azpulsecount = 0;
@@ -71,23 +71,23 @@ volatile sint8 azdir = 0; //  1 = right / 0 = stoped / -1 = left
 volatile sint8 eldir = 0; //  1 = up / 0 = stoped / -1 = down
 
 // pulses/degrees ratio
-float azdratio = 1; // tentative value (see config.h)
-float eldratio = 1; // tentative value (see config.h)
+float azdratio = 8.777777778; // tentative value (see config.h)
+float eldratio = 8.777777778; // tentative value (see config.h)
 
-// flags on code
-// limits
-volatile bool azlimit = 0;
-volatile bool ellimit = 0;
-// is parking
-bool isparking = false;
-bool iscalibrating = false;
+// prototypes
+void calc_position();
+
+// SOME progmem
+
+const char pstatus[] PROGMEM = "{\"az\": \"%az%\", \"el\": \"%el%\", \"taz\": \"%taz%\", \"tel\": \"%tel%\", \"status\": \"%st%\"}";
 
 /*****************************
  * Miscelaneous functions
 ******************************/
 
 // split a string in parts by a given separator
-String getValue(String data, char separator, int index)
+String
+getValue(String data, char separator, int index)
 {
     int found = 0;
     int strIndex[] = {0, -1};
@@ -113,51 +113,67 @@ String getValue(String data, char separator, int index)
 // stop azimuth movement
 void az_stop()
 {
-    // reset target = actual
-    tazimuth = azimuth;
+    bool mod = false;
 
     // full motor stop
-    digitalWrite(MRIGHT, LOW);
-    digitalWrite(MLEFT, LOW);
+    if (digitalRead(MRIGHT))
+    {
+        digitalWrite(MRIGHT, LOW);
+        mod = true;
+    }
+    if (digitalRead(MLEFT))
+    {
+        digitalWrite(MLEFT, LOW);
+        mod = true;
+    }
 
-    // induced pause
-    delay(1000);
+    // reset only if neede
+    if (mod)
+    {
+        // induced pause
+        delay(200);
 
-    // dir update
-    azdir = 0;
+        // dir update
+        azdir = 0;
 
-    // state
-    state = IDLE;
-
-    // debug
+        // debug
 #ifdef DEBUG
-    Serial.println("AZ STOP");
+        Serial.println("AZ STOP");
 #endif
+    }
 }
 
 // stop elevation movement
 void el_stop()
 {
-    // reset target = actual
-    televation = elevation;
+    bool mod = false;
 
     // full motor stop
-    digitalWrite(MUP, LOW);
-    digitalWrite(MDOWN, LOW);
+    if (digitalRead(MUP))
+    {
+        digitalWrite(MUP, LOW);
+        mod = true;
+    }
+    if (digitalRead(MDOWN))
+    {
+        digitalWrite(MDOWN, LOW);
+        mod = true;
+    }
 
-    // induced pause
-    delay(1000);
+    // reset only if neede
+    if (mod)
+    {
+        // induced pause
+        delay(200);
 
-    // dir update
-    eldir = 0;
+        // dir update
+        eldir = 0;
 
-    // state
-    state = IDLE;
-
-// debug
+        // debug
 #ifdef DEBUG
-    Serial.println("EL STOP");
+        Serial.println("EL STOP");
 #endif
+    }
 }
 
 // move right
@@ -176,9 +192,6 @@ void move_right()
 
     // dir update
     azdir = 1;
-
-    // state
-    state = TRACKING;
 
 // debug
 #ifdef DEBUG
@@ -203,9 +216,6 @@ void move_left()
     // dir update
     azdir = -1;
 
-    // state
-    state = TRACKING;
-
 // debug
 #ifdef DEBUG
     Serial.println("MOVE LEFT");
@@ -229,9 +239,6 @@ void move_up()
     // dir update
     eldir = 1;
 
-    // state
-    state = TRACKING;
-
 // debug
 #ifdef DEBUG
     Serial.println("MOVE UP");
@@ -254,9 +261,6 @@ void move_down()
 
     // dir update
     eldir = -1;
-
-    // state
-    state = TRACKING;
 
     // debug
 #ifdef DEBUG
@@ -292,6 +296,9 @@ void set_position(String data)
     tazimuth = a;
     televation = e;
 
+    // declare status
+    state = TRACKING;
+
     // debug
 #ifdef DEBUG
     Serial.print("P ");
@@ -304,14 +311,21 @@ void set_position(String data)
 // get position
 String get_position()
 {
+    Serial.print("azp/az: ");
+    Serial.print(azpulsecount);
+    Serial.print("/");
+    Serial.print(azimuth);
+    Serial.print(" elp/el: ");
+    Serial.print(elpulsecount);
+    Serial.print("/");
+    Serial.println(elevation);
+
     // build the response string
     char az[8];
     char el[8];
     dtostrf(azimuth, 3, 2, az);
     dtostrf(elevation, 3, 2, el);
-    String azim = String(az);
-    String elev = String(el);
-    String result = String("p\n") + azim + String("\n") + elev;
+    String result = String(az) + String("\n") + String(el) + String("\n");
     result.replace(".", ",");
     return result;
 }
@@ -319,10 +333,6 @@ String get_position()
 // full stop
 void full_stop()
 {
-#ifdef DEBUG
-    Serial.println("S");
-#endif
-
     // motors
     // az
     digitalWrite(MRIGHT, LOW);
@@ -339,10 +349,6 @@ void full_stop()
     tazimuth = azimuth;
     televation = elevation;
 
-    // stop parking if set
-    if (isparking)
-        isparking = false;
-
     // state
     state = IDLE;
 
@@ -355,43 +361,49 @@ void full_stop()
 // parking
 void parking()
 {
-    // debug
-#ifdef DEBUG
-    Serial.println("K");
-#endif
-
-    // move to az =0 / el = 0 with no error, 0,000 flat!
-    isparking = true;
+    // move to az = 0 / el = 0 with no error, 0,000 flat!
     tazimuth = 0;
     televation = 0;
 
-    // state
-    state = PARKING;
+    // going to left/down all the way down
+    move_left();
+    move_down();
+    delay(100);
+    if (digitalRead(ELLIMIT) or digitalRead(AZLIMIT))
+        return;
+
+    // if you reached here then both limits hare hit
+
+    // reset pulsescount
+    azpulsecount = 0;
+    elpulsecount = 0;
+    // reset  position
+    azimuth = 0;
+    elevation = 0;
+
+    // set state
+    state = IDLE;
 }
 
 // make a calibration cycle
 void calibration()
 {
-    // debug
-#ifdef DEBUG
-    Serial.println("c");
-    Serial.println("Blocking parking, please wait...");
-#endif
-
-    // make a calibration cycle
-    iscalibrating = true;
-
-    // state
     state = CALIBRATING;
 
-    // part one: blocking parking
-    parking();
-    while (isparking)
+    // going to left/down all the way down
+    move_left(); move_down();
+    while (digitalRead(ELLIMIT) or digitalRead(AZLIMIT))
     {
-        // delay until its parked
-        delay(1000);
+        delay(200);
         Serial.print(".");
+        calc_position();
     }
+
+    // stop all movement
+    full_stop();
+
+    // set state again
+    state = CALIBRATING;
 
     // end the printing
     Serial.println(".");
@@ -402,29 +414,12 @@ void calibration()
     azpulsecount = 0;
     elpulsecount = 0;
 
-    // start the movement and wait a little to allow for reseting the limit
+    // going to left/down all the way down
     move_right();
-    delay(1000);
-
-    // blocking movement azimuth
-    while (!azlimit)
-    {
-        delay(1000);
-        Serial.print(".");
-    }
-
-    // end the printing
-    Serial.println(".");
-    Serial.println("Blocking calibration elevation...");
-
-    // start the movement and wait a little to allow for reseting the limit
     move_up();
-    delay(1000);
-
-    // blocking movement azimuth
-    while (!ellimit)
+    while (digitalRead(ELLIMIT) or digitalRead(AZLIMIT))
     {
-        delay(1000);
+        delay(200);
         Serial.print(".");
     }
 
@@ -432,26 +427,39 @@ void calibration()
     Serial.println(".");
     Serial.println("Done");
 
-    iscalibrating = false;
-
     // calculation of the ration
-    // azdratio & eldratio
-    azdratio = azpulsecount / (MAXAZIMUTH - MINAZIMUTH);
-    eldratio = elpulsecount / (MAXELEVATION - MINELEVATION);
+    if (azpulsecount > 0)
+        azdratio = azpulsecount / (MAXAZIMUTH - MINAZIMUTH);
+    else
+        azdratio = 1;
+    
+    if (elpulsecount > 0)
+        eldratio = elpulsecount / (MAXELEVATION - MINELEVATION);
+    else
+        eldratio = 1;
+    
+    // debug
+    Serial.print("AZratio: ");
+    Serial.print(azdratio);
+    Serial.print("ELratio: ");
+    Serial.println(eldratio);
 
     // save conf
     saveConf(conf);
+
+    // state
+    state = IDLE;
 }
 
 // handle the client messages
 String msg_handle(char *data)
 {
     String d = String(data);
-    String result = String("RPRT 0");
+    String result = String("RPRT 0\n");
     char command = d.charAt(0);
 
     // if calibrating just reply ok and return
-    if (iscalibrating)
+    if (state == CALIBRATING)
         return String(result);
 
     // select the action depending on the command
@@ -471,11 +479,36 @@ String msg_handle(char *data)
         break;
     // parking
     case 75: // K
-        parking();
+        state = PARKING;
         break;
     // make a calibration cycle
     case 99: // c
+        state = CALIBRATING;
         calibration();
+        break;
+    // move RIGHT
+    case 114: // r
+    case  82: // R
+        move_right();
+        state = MANUAL;
+        break;
+    // move LEFT
+    case 108: // l
+    case  76:  // L
+        move_left();
+        state = MANUAL;
+        break;
+    // move UP
+    case 117: // u
+    case  85:  // U
+        move_up();
+        state = MANUAL;
+        break;
+    // move DOWN
+    case 100: // d
+    case 68:  // D
+        move_down();
+        state = MANUAL;
         break;
 
     default:
@@ -554,40 +587,26 @@ static void handleNewClient(void *arg, AsyncClient *client)
 // calc position
 void calc_position()
 {
-    azimuth = azpulsecount / azdratio;
-    elevation = elpulsecount / eldratio;
-
-    // failsafe
-    if (azimuth > MAXAZIMUTH)
-        azimuth = MAXAZIMUTH;
-    if (azimuth < MINAZIMUTH)
-        azimuth = MINAZIMUTH;
-    // failsafe
-    if (elevation > MAXELEVATION)
-        azimuth = MAXELEVATION;
-    if (azimuth < MINELEVATION)
-        azimuth = MINELEVATION;
-
-    // limits case
-    if (azlimit == 1)
-    { // azimuth limits
-        if (digitalRead(MRIGHT) == 1)
-            azimuth = MAXAZIMUTH;
-        if (digitalRead(MLEFT) == 1)
-            azimuth = MINAZIMUTH;
-    }
-    if (ellimit == 1)
+    if (azpulsecount != 0)
     {
-        if (digitalRead(MUP) == 1)
-            elevation = MAXELEVATION;
-        if (digitalRead(MDOWN) == 1)
-            elevation = MINELEVATION;
+        azimuth = float(azpulsecount) / azdratio;
+    }
+    else
+    {
+        azimuth = 0;
     }
 
-    // parking
-    if ((azlimit == 1) and (ellimit == 1))
-        if (isparking)
-            isparking = false;
+    if (elpulsecount != 0)
+        elevation = float(elpulsecount) / eldratio;
+    else
+        elevation = 0;
+
+    // failsafe AZ
+    if (azimuth > MAXAZIMUTH) {azimuth = MAXAZIMUTH;}
+    if (azimuth < MINAZIMUTH) {azimuth = MINAZIMUTH;}
+    // failsafe EL
+    if (elevation > MAXELEVATION) {elevation = MAXELEVATION;}
+    if (elevation < MINELEVATION) {elevation = MINELEVATION;}
 }
 
 // update the real positions from pulses
@@ -599,36 +618,39 @@ void update_position()
     // sum azimuth
     if (azpulses != 0)
     {
-        azimuth += azpulses;
+        azpulsecount += azpulses;
         azpulses = 0;
     }
 
     // sum elevation
     if (elpulses != 0)
     {
-        elevation += elpulses;
+        elpulsecount += elpulses;
         elpulses = 0;
+
+        Serial.print("eLp:");
+        Serial.println(elpulsecount);
     }
 
     // enable interrupts
     interrupts();
 
-    // calc real pointing position
+    // update az/el
     calc_position();
 }
 
 // we need to move on az?
 void need2move_az(float delta)
 {
+    // manual
+    if (state == MANUAL)
+        return;
+    
     // old movement
     sint8 oldazdir = azdir;
 
-    // limits hit: STOP!
-    if (azlimit == 1)
-        az_stop();
-
     // need to move
-    if ((abs(delta) > minerror) or (isparking))
+    if (abs(delta) > minerror)
     {
         // debug
 // #ifdef DEBUG
@@ -638,15 +660,10 @@ void need2move_az(float delta)
 
         // ok, we need to move if no limits are hit
         if ((oldazdir != 1) and (delta > 0))
-        {
-            // move rigth
             move_right();
-        }
+
         if ((oldazdir != -1) and (delta < 0))
-        {
-            // move left
             move_left();
-        }
     }
     else
     {
@@ -658,15 +675,15 @@ void need2move_az(float delta)
 // we need to move on el?
 void need2move_el(float delta)
 {
+    // manual
+    if (state == MANUAL)
+        return;
+
     // old movement
     sint8 oldeldir = eldir;
 
-    // limits hit: full STOP
-    if (ellimit == 1)
-        el_stop();
-
     // need to move
-    if ((abs(delta) > minerror) or (isparking))
+    if (abs(delta) > minerror)
     {
 //         // debug
 // #ifdef DEBUG
@@ -707,6 +724,48 @@ void need2move()
     need2move_el(del);
 }
 
+// Limits
+void limits()
+{
+    // azimuth
+    if (!digitalRead(AZLIMIT))
+    {
+        // moving right
+        if (azdir > 0)
+        {
+            azpulsecount = MAXAZIMUTH * azdratio;
+            digitalWrite(MRIGHT, LOW);   
+        }
+        // moving left
+        if (azdir < 0)
+        {
+            azpulsecount = 0;
+            digitalWrite(MLEFT, LOW);
+        }
+        // stoppped
+        azdir = 0;
+    }
+
+    // elevation
+    if (!digitalRead(ELLIMIT))
+    {
+        // moving UP
+        if (eldir > 0)
+        {
+            elpulsecount = MAXELEVATION * eldratio;
+            digitalWrite(MUP, LOW);
+        }
+        // moving down
+        if (eldir < 0)
+        {
+            elpulsecount = 0;
+            digitalWrite(MDOWN, LOW);
+        }
+        // stoppped
+        eldir = 0;
+    }
+}
+
 /**********************
  * Setup funtions
 ***********************/
@@ -725,16 +784,12 @@ void pin_setup()
     digitalWrite(MDOWN, LOW);
 
     // Input movement interrupts
-    pinMode(IIAZ, INPUT_PULLUP);
-    pinMode(IIEL, INPUT_PULLUP);
+    pinMode(IIAZ, INPUT);
+    pinMode(IIEL, INPUT);
 
     // movement current sensor
-    pinMode(AZLIMIT, INPUT_PULLUP);
-    pinMode(ELLIMIT, INPUT_PULLUP);
-
-    // Rotor transformer relay
-    pinMode(TRAFOON, OUTPUT);
-    digitalWrite(TRAFOON, LOW);
+    pinMode(AZLIMIT, INPUT);
+    pinMode(ELLIMIT, INPUT);
 }
 
 // wifi config
@@ -755,6 +810,20 @@ void wifi_config()
     else
     {
         Serial.println("No connection detected...");
+    }
+
+    // register mDNS and names
+    if (!MDNS.begin(HOSTNAME))
+    {
+        Serial.println("Error setting up MDNS responder!");
+    }
+    else
+    {
+        MDNS.addService("hamlib-rotctld", "tcp", TCP_PORT);
+        MDNS.addService("http-web", "tcp", 80);
+        Serial.print("mDSN name registered ");
+        Serial.print(HOSTNAME);
+        Serial.println(".local");
     }
 }
 
@@ -855,28 +924,12 @@ void IRAM_ATTR elinterrupt()
         elpulses -= 1;
 }
 
-// az limit hit
-void IRAM_ATTR azlimhit()
-{
-    azlimit = !digitalRead(AZLIMIT);
-}
-
-// el limit hit
-void IRAM_ATTR ellimhit()
-{
-    ellimit = !digitalRead(ELLIMIT);
-}
-
 // interrupts setup
 void interrupt_setup()
 {
     // az/el movement
     attachInterrupt(digitalPinToInterrupt(IIAZ), azinterrupt, CHANGE);
     attachInterrupt(digitalPinToInterrupt(IIEL), elinterrupt, CHANGE);
-
-    // limits interrupts
-    attachInterrupt(digitalPinToInterrupt(AZLIMIT), azlimhit, CHANGE);
-    attachInterrupt(digitalPinToInterrupt(ELLIMIT), ellimhit, CHANGE);
 }
 
 /****************************
@@ -893,23 +946,23 @@ String processor(const String &var)
 // #endif
 
     // azimuth
-    if (var == "azimuth")
+    if (var == "az")
         return String(azimuth);
 
     // elavation
-    if (var == "elevation")
+    if (var == "el")
         return String(elevation);
 
     // tazimuth
-    if (var == "tazimuth")
+    if (var == "taz")
         return String(tazimuth);
 
     // telavation
-    if (var == "televation")
+    if (var == "tel")
         return String(televation);
 
     // status
-    if (var == "STATUS")
+    if (var == "st")
         return String(state);
 
     // default returns
@@ -961,7 +1014,7 @@ void serveBackMap(AsyncWebServerRequest *request)
 // target coordinates
 void servePosition(AsyncWebServerRequest *request)
 {
-    request->send(LittleFS, "/position.txt", String(), false, processor);
+    request->send_P(200, "text/txt", pstatus, processor);
 #ifdef DEBUG
     Serial.println("/p");
 #endif
@@ -973,18 +1026,18 @@ void webCommands()
     switch (wcmd)
     {
     case STOP:
-        full_stop();
         wcmd = NONE;
+        full_stop();
         break;
 
     case CAL:
-        calibration();
         wcmd = NONE;
+        calibration();
         break;
 
     case PARK:
-        parking();
         wcmd = NONE;
+        state = PARKING;
         break;
 
     default:
@@ -1104,17 +1157,21 @@ void setup()
         Serial.println("An Error has occurred while mounting LittleFS");
         return;
     }
+
+    Serial.print("azdratio: ");
+    Serial.print(azdratio);
+    Serial.print(" | eldratio: ");
+    Serial.println(eldratio);
+
+    Serial.println("");
+    Serial.println("Init Parking...");
+    state = PARKING;
+    parking();
 }
 
 // main loop
 void loop()
 {
-    // check if the position changed
-    update_position();
-
-    // need to move? (always AFTER the update_position one)
-    need2move();
-
     // multiwifi run
     wifiMulti.run();
 
@@ -1124,6 +1181,27 @@ void loop()
     // catch web commands
     webCommands();
 
+    // check limits
+    limits();
+
     // timer tick
     timer.tick();
+
+    // check if the position changed
+    update_position();
+
+    // calibrating
+    if (state != CALIBRATING)
+    {
+        // parking
+        if (state == PARKING)
+        {
+            parking();
+        }
+        else
+        {
+            // need to move, always AFTER the update_position one
+            need2move();
+        }
+    }
 }

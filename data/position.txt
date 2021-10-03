@@ -1,1 +1,0 @@
-{"az": "%azimuth%", "el": "%elevation%", "taz": "%tazimuth%", "tel": "%televation%", "status": "%STATUS%"}
