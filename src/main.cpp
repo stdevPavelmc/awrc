@@ -1204,4 +1204,7 @@ void loop()
             need2move();
         }
     }
+
+    // delay to make the wifi handling
+    delay(1);
 }

@@ -52,7 +52,7 @@ typedef struct
 #define AUTOSAVE_INTERVAL 30
 
 // default values for config (only re az/el delta ratio)
-#define DEF_AZDRATIO 8.777777778;
-#define DEF_ELDRATIO 8.777777778;
+#define DEF_AZDRATIO 8.777777778 // 3160 pulses/360 degrees
+#define DEF_ELDRATIO 14.244444444 // 1283 pulses/90 degrees
 
 #endif // CONFIG_H
