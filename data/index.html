@@ -224,9 +224,10 @@
                         // status
                         var s = "IDLE";
                         if (parseInt(p.status) == 1) { s = "Tracking"; }
-                        if (parseInt(p.status) == 2) { s = "Calibrating"; }
-                        if (parseInt(p.status) == 3) { s = "Parking"; }
-                        if (parseInt(p.status) == 4) { s = "OTA update";}
+                        if (parseInt(p.status) == 2) { s = "Manual"; }
+                        if (parseInt(p.status) == 3) { s = "Calibrating"; }
+                        if (parseInt(p.status) == 4) { s = "Parking"; }
+                        if (parseInt(p.status) == 5) { s = "OTA update";}
                         state.innerHTML = "Status: " + s;
 
                         console.log("Az: " + p.az + " El: " + p.el + " / tAz: " + p.taz + " tEl: " + p.tel + " / State: " + s);
