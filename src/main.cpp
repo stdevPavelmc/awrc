@@ -19,32 +19,12 @@
 #include "eeprom.h"
 #include "config.h"
 
-// State of the system
-enum States
-{
-    IDLE,
-    TRACKING,
-    MANUAL,
-    CALIBRATING,
-    PARKING,
-    OTA
-};
-
-enum WebCmds 
-{
-    NONE,
-    CAL,
-    STOP,
-    PARK
-};
-
-States state = IDLE;
-WebCmds wcmd = NONE;
-
 // instantiating
 Config conf;
+States state = IDLE;
+WebCmds wcmd = NONE;
 ESP8266WiFiMulti wifiMulti;
-static DNSServer DNS;
+//static DNSServer DNS;
 AsyncWebServer webServer(80);
 static std::vector<AsyncClient *> clients;
 auto timer = timer_create_default(); // create a timer with default settings
@@ -59,6 +39,19 @@ float elevation = 0.0;
 // target values
 float tazimuth = 0.0;
 float televation = 0.0;
+
+// inertia on axes
+float azinertia = 0;
+float elinertia = 0;
+// last time we moved on an axis
+unsigned long aztime = 0;
+unsigned long eltime = 0;
+// stopped flags
+bool azstopped = true;
+bool elstopped = true;
+// position to stop command
+float azstoppos = 0;
+float elstoppos = 0;
 
 // pulse count vars
 int azpulsecount = 0;
@@ -130,6 +123,9 @@ void az_stop()
     // reset only if neede
     if (mod)
     {
+        // postition of the stop command
+        azstoppos = azimuth;
+
         // induced pause
         delay(200);
 
@@ -163,6 +159,9 @@ void el_stop()
     // reset only if neede
     if (mod)
     {
+        // postition of the stop command
+        elstoppos = elevation;
+
         // induced pause
         delay(200);
 
@@ -642,6 +641,9 @@ void update_position()
     {
         azpulsecount += azpulses;
         azpulses = 0;
+
+        // reset last movement time mark
+        aztime = millis();
     }
 
     // sum elevation
@@ -650,8 +652,8 @@ void update_position()
         elpulsecount += elpulses;
         elpulses = 0;
 
-        Serial.print("eLp:");
-        Serial.println(elpulsecount);
+        // reset last movement time mark
+        eltime = millis();
     }
 
     // enable interrupts
@@ -667,30 +669,58 @@ void need2move_az(float delta)
     // manual
     if (state == MANUAL)
         return;
-    
-    // old movement
-    sint8 oldazdir = azdir;
 
-    // need to move
-    if (abs(delta) > minerror)
+    // absolute value of delta
+    float adelta = abs(delta);
+
+    // inertia and i'm moving to make the stop
+    if (azinertia != 0 and azdir != 0)
     {
-        // debug
-// #ifdef DEBUG
-//         Serial.print("Az diff: ");
-//         Serial.println(delta);
-// #endif
+        // moving right and hit inertia window
+        if ((azdir == 1) and (delta - azinertia) <= 0)
+        {
+            az_stop();
+            return;
+        }
 
-        // ok, we need to move if no limits are hit
-        if ((oldazdir != 1) and (delta > 0))
-            move_right();
-
-        if ((oldazdir != -1) and (delta < 0))
-            move_left();
+        // moving left and hit inertia window
+        if ((azdir == -1) and (delta + azinertia) >= 0)
+        {
+            az_stop();
+            return;
+        }
     }
-    else
+
+    // from stopped position
+    if (azdir == 0)
     {
-        // no need to move stop motors
+        // mode right
+        if (delta > 0 and adelta > MINERROR)
+        {
+            move_right();
+            return;
+        }
+
+        // mode left
+        if (delta < 0 and adelta > MINERROR)
+        {
+            move_left();
+            return;
+        }
+    }
+
+    // from moving left
+    if (azdir == -1 and delta >= 0)
+    {
         az_stop();
+        return;
+    }
+
+    // from moving right
+    if (azdir == 1 and delta <= 0)
+    {
+        az_stop();
+        return;
     }
 }
 
@@ -705,7 +735,7 @@ void need2move_el(float delta)
     sint8 oldeldir = eldir;
 
     // need to move
-    if (abs(delta) > minerror)
+    if (abs(delta) > MINERROR)
     {
 //         // debug
 // #ifdef DEBUG
@@ -740,7 +770,7 @@ void need2move()
     // move if needed
     need2move_az(daz);
 
-    // elevation
+    // elevation difference
     float del = televation - elevation;
     // move if needed
     need2move_el(del);
@@ -786,6 +816,31 @@ void limits()
         // stoppped
         eldir = 0;
     }
+}
+
+// know if moving and calc the inertia of the axis
+void ismoving()
+{
+    // az
+    unsigned long delta = millis() - aztime;
+    if (delta > AZSTOPT)
+    {
+        azstopped = true;
+
+        // calc inertia only if tracking
+        if (state == TRACKING)
+        {
+            if (azinertia == 0)
+                azinertia = abs(azimuth - azstoppos);
+            else
+                azinertia = (azinertia + abs(azimuth - azstoppos)) / 2;
+
+        }
+    }
+    else
+        azstopped = false;
+
+    // el TODO...
 }
 
 /**********************
@@ -1208,6 +1263,9 @@ void loop()
 
     // timer tick
     timer.tick();
+
+    // know the real status (moving/stopped)
+    ismoving();
 
     // check if the position changed
     update_position();
