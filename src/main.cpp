@@ -691,6 +691,20 @@ void need2move_az(float delta)
         }
     }
 
+    // from moving left
+    if (azdir == -1 and delta >= 0)
+    {
+        az_stop();
+        return;
+    }
+
+    // from moving right
+    if (azdir == 1 and delta <= 0)
+    {
+        az_stop();
+        return;
+    }
+
     // from stopped position
     if (azdir == 0)
     {
@@ -707,20 +721,6 @@ void need2move_az(float delta)
             move_left();
             return;
         }
-    }
-
-    // from moving left
-    if (azdir == -1 and delta >= 0)
-    {
-        az_stop();
-        return;
-    }
-
-    // from moving right
-    if (azdir == 1 and delta <= 0)
-    {
-        az_stop();
-        return;
     }
 }
 
@@ -840,7 +840,23 @@ void ismoving()
     else
         azstopped = false;
 
-    // el TODO...
+    // el
+    delta = millis() - eltime;
+    if (delta > ELSTOPT)
+    {
+        elstopped = true;
+
+        // calc inertia only if tracking
+        if (state == TRACKING)
+        {
+            if (elinertia == 0)
+                elinertia = abs(elevation - elstoppos);
+            else
+                elinertia = (elinertia + abs(elevation - elstoppos)) / 2;
+        }
+    }
+    else
+        elstopped = false;
 }
 
 /**********************
