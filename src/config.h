@@ -33,7 +33,13 @@ const float MAXELEVATION = 90.0;
 const byte MINELEVATION = 0.0;
 
 // minimum error to track
-const float minerror = 5.0;
+const float MINERROR = 5.0;
+
+// time limits to know we are stopped (millis)
+#define AZSTOPT 1000
+#define ELSTOPT 1000
+
+/***************** EEPROM **********************/
 
 // EEPROM size
 #define EES 22
@@ -54,5 +60,29 @@ typedef struct
 // default values for config (only re az/el delta ratio)
 #define DEF_AZDRATIO 8.777777778 // 3160 pulses/360 degrees
 #define DEF_ELDRATIO 14.244444444 // 1283 pulses/90 degrees
+
+// State of the system
+enum States
+{
+    IDLE,
+    TRACKING,
+    MANUAL,
+    CALIBRATING,
+    PARKING,
+    OTA
+};
+
+// Web commands
+enum WebCmds
+{
+    NONE,
+    CAL,
+    STOP,
+    PARK,
+    RIGHT,
+    LEFT,
+    UP,
+    DOWN
+};
 
 #endif // CONFIG_H
