@@ -71,8 +71,8 @@ volatile sint8 azdir = 0; //  1 = right / 0 = stoped / -1 = left
 volatile sint8 eldir = 0; //  1 = up / 0 = stoped / -1 = down
 
 // pulses/degrees ratio
-float azdratio = 8.777777778; // tentative value (see config.h)
-float eldratio = 8.777777778; // tentative value (see config.h)
+float azdratio = DEF_AZDRATIO; // tentative value (see config.h)
+float eldratio = DEF_ELDRATIO; // tentative value (see config.h)
 
 // prototypes
 void calc_position();
