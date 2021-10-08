@@ -330,6 +330,24 @@ String get_position()
     return result;
 }
 
+// get calibration parameters
+String get_calibration()
+{
+    Serial.print("AZ ratio: ");
+    Serial.print(azdratio);
+    Serial.print(" | EL ratio: ");
+    Serial.println(eldratio);
+
+    // build the response string
+    char azd[8];
+    char eld[8];
+    dtostrf(azdratio, 3, 2, azd);
+    dtostrf(eldratio, 3, 2, eld);
+    String result = String("AZd: ") + String(azd) + String("\n") + String("ELd: ") + String(eld) + String("\n");
+    result.replace(".", ",");
+    return result;
+}
+
 // full stop
 void full_stop()
 {
@@ -482,9 +500,13 @@ String msg_handle(char *data)
         state = PARKING;
         break;
     // make a calibration cycle
-    case 99: // c
+    case 43: // C
         state = CALIBRATING;
         calibration();
+        break;
+    // retrieve calibration parameters
+    case 99: // c
+        result = get_calibration();
         break;
     // move RIGHT
     case 114: // r
