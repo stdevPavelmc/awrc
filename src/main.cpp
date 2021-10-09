@@ -5,12 +5,11 @@
 
 // libraries
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
-#include <DNSServer.h>
-#include <ESP8266mDNS.h>
 #include <vector>
 #include <arduino-timer.h>
 #include "LittleFS.h"
@@ -731,34 +730,57 @@ void need2move_el(float delta)
     if (state == MANUAL)
         return;
 
-    // old movement
-    sint8 oldeldir = eldir;
+    // absolute value of delta
+    float adelta = abs(delta);
 
-    // need to move
-    if (abs(delta) > MINERROR)
+    // inertia and i'm moving to make the stop
+    if (elinertia != 0 and eldir != 0)
     {
-//         // debug
-// #ifdef DEBUG
-//         Serial.print("El diff: ");
-//         Serial.println(delta);
-// #endif
-
-        // ok, we need to move if no limits are hit
-        if ((oldeldir != 1) and (delta > 0))
+        // moving up and hit inertia window
+        if ((eldir == 1) and (delta - elinertia) <= 0)
         {
-            // move up
-            move_up();
+            el_stop();
+            return;
         }
-        if ((oldeldir != -1) and (delta < 0))
+
+        // moving down and hit inertia window
+        if ((eldir == -1) and (delta + elinertia) >= 0)
         {
-            // move down
-            move_down();
+            el_stop();
+            return;
         }
     }
-    else
+
+    // from moving down
+    if (eldir == -1 and delta >= 0)
     {
-        // no need to move stop motors
         el_stop();
+        return;
+    }
+
+    // from moving up
+    if (eldir == 1 and delta <= 0)
+    {
+        el_stop();
+        return;
+    }
+
+    // from stopped position
+    if (eldir == 0)
+    {
+        // move up
+        if (delta > 0 and adelta > MINERROR)
+        {
+            move_up();
+            return;
+        }
+
+        // move down
+        if (delta < 0 and adelta > MINERROR)
+        {
+            move_down();
+            return;
+        }
     }
 }
 
@@ -888,6 +910,10 @@ void pin_setup()
 // wifi config
 void wifi_config()
 {
+    // set hostname
+    WiFi.hostname(HOSTNAME);
+
+    // start wifi handling
     WiFi.mode(WIFI_STA);
     wifiMulti.addAP("termopilas", "QF9vhtwj");
     wifiMulti.addAP("CO7WT", "Xilantr0!!!");
@@ -912,8 +938,8 @@ void wifi_config()
     }
     else
     {
-        MDNS.addService("hamlib-rotctld", "tcp", TCP_PORT);
-        MDNS.addService("http-web", "tcp", 80);
+        MDNS.addService("rotctld", "tcp", TCP_PORT);
+        MDNS.addService("http", "tcp", 80);
         Serial.print("mDSN name registered ");
         Serial.print(HOSTNAME);
         Serial.println(".local");
@@ -1300,6 +1326,9 @@ void loop()
             need2move();
         }
     }
+
+    // mDNS update
+    MDNS.update();
 
     // delay to make the wifi handling
     delay(1);
