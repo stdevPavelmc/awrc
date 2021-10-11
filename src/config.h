@@ -29,8 +29,12 @@
 // Polar coordinates limits
 const float MAXAZIMUTH = 360.0;
 const byte MINAZIMUTH = 0;
-const float MAXELEVATION = 90.0;
+const float MAXELEVATION = 72.0;
 const byte MINELEVATION = 0.0;
+
+// default values for config (only re az/el delta ratio)
+#define DEF_AZDRATIO 8.777777778  // 3160 pulses/360 degrees
+#define DEF_ELDRATIO 17.575342466 // 1283 pulses/72 degrees
 
 // minimum error to track
 const float MINERROR = 5.0;
@@ -56,10 +60,6 @@ typedef struct
 
 // autosave interval (in seconds)
 #define AUTOSAVE_INTERVAL 30
-
-// default values for config (only re az/el delta ratio)
-#define DEF_AZDRATIO 8.777777778 // 3160 pulses/360 degrees
-#define DEF_ELDRATIO 14.244444444 // 1283 pulses/90 degrees
 
 // State of the system
 enum States
