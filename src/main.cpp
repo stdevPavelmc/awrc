@@ -71,7 +71,7 @@ void calc_position();
 
 // SOME progmem
 
-const char pstatus[] PROGMEM = "{\"az\": \"%az%\", \"el\": \"%el%\", \"taz\": \"%taz%\", \"tel\": \"%tel%\", \"status\": \"%st%\"}";
+const char pstatus[] PROGMEM = "{\"az\": \"%az%\", \"el\": \"%el%\", \"taz\": \"%taz%\", \"tel\": \"%tel%\", \"status\": \"%st%\", \"rssi\": \"%rs%\"}";
 
 /*****************************
  * Miscelaneous functions
@@ -1084,6 +1084,10 @@ String processor(const String &var)
     if (var == "st")
         return String(state);
 
+    // rssi
+    if (var == "rs")
+        return String(WiFi.RSSI());
+
     // default returns
     return String("");
 }
@@ -1159,6 +1163,30 @@ void webCommands()
         state = PARKING;
         break;
 
+    case UP:
+        wcmd = NONE;
+        state = MANUAL;
+        move_up();
+        break;
+
+    case DOWN:
+        wcmd = NONE;
+        state = MANUAL;
+        move_down();
+        break;
+
+    case LEFT:
+        wcmd = NONE;
+        state = MANUAL;
+        move_left();
+        break;
+
+    case RIGHT:
+        wcmd = NONE;
+        state = MANUAL;
+        move_right();
+        break;
+
     default:
         break;
     }
@@ -1206,6 +1234,62 @@ void serveStop(AsyncWebServerRequest *request)
     wcmd = STOP;
 }
 
+// moving UP from the web interface
+void serveUp(AsyncWebServerRequest *request)
+{
+    // send ok then
+    request->send(200, "text/plain", F("ok"));
+
+#ifdef DEBUG
+    Serial.println(F("Doing UP from the web"));
+#endif
+
+    // set web cmd
+    wcmd = UP;
+}
+
+// moving down from the web interface
+void serveDown(AsyncWebServerRequest *request)
+{
+    // send ok then
+    request->send(200, "text/plain", F("ok"));
+
+#ifdef DEBUG
+    Serial.println(F("Doing DOWN from the web"));
+#endif
+
+    // set web cmd
+    wcmd = DOWN;
+}
+
+// moving left from the web interface
+void serveLeft(AsyncWebServerRequest *request)
+{
+    // send ok then
+    request->send(200, "text/plain", F("ok"));
+
+#ifdef DEBUG
+    Serial.println(F("Doing LEFT from the web"));
+#endif
+
+    // set web cmd
+    wcmd = LEFT;
+}
+
+// moving right from the web interface
+void serveRight(AsyncWebServerRequest *request)
+{
+    // send ok then
+    request->send(200, "text/plain", F("ok"));
+
+#ifdef DEBUG
+    Serial.println(F("Doing RIGHT from the web"));
+#endif
+
+    // set web cmd
+    wcmd = RIGHT;
+}
+
 // setup the web server
 void webserver_setup()
 {
@@ -1224,6 +1308,10 @@ void webserver_setup()
     webServer.on("/cal", HTTP_GET, serveCalibration);
     webServer.on("/stop", HTTP_GET, serveStop);
     webServer.on("/park", HTTP_GET, servePark);
+    webServer.on("/up", HTTP_GET, serveUp);
+    webServer.on("/down", HTTP_GET, serveDown);
+    webServer.on("/left", HTTP_GET, serveLeft);
+    webServer.on("/right", HTTP_GET, serveRight);
 
     // not found
     webServer.onNotFound(notFound);
