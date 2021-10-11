@@ -30,7 +30,7 @@ p {
 .page {
     border: 1px solid #0F3376;
     text-align: center;
-    width: 1600px;
+    width: 95%;
     overflow: auto;
     display: inline-flex;
     flex-direction: row;
@@ -56,7 +56,8 @@ p {
 .status {
     width: 100%;
     padding-bottom: 20px;
-    display:    flex;
+    display: flex;
+    border: 1px solid navy;
 }
 
 .status_row {
@@ -104,9 +105,8 @@ p {
 }
 
 .button {
-    margin: 20px;
-    width: 100px;
-    height: 30px;
+    width: 95%;
+    height: 95%;
 }
 
 .status {
@@ -123,4 +123,27 @@ p {
     align-items: center;
     text-align: center;
     width: 100%;
+}
+
+.grid {
+  display: grid;
+  grid-gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  vertical-align: middle;
+}
+
+.grid div {
+    text-align: center;
+    min-height: 50px;
+    display: inline-block;
+}
+
+#input {
+    display: none;
+}
+
+#set {
+    padding-top: 20px;
+    width: 100%;
+    text-align: center;
 }

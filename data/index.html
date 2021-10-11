@@ -27,10 +27,30 @@
                     <span id="s">0</span>
                     <span id="state">Status: IDLE</span>
                 </div>
-                <form id="form_buttons" action="#">
-                    <input class="button" type="button" name="calibrate" id="calibrate" onclick="send('cal');" value="CALIBRATE" />
-                    <input class="button" type="button" name="stop" id="stop" onclick="send('stop')" value="STOP" />
-                    <input class="button" type="button" name="park" id="park" onclick="send('park')" value="PARK" />
+                <form class="status" id="form_buttons" action="#">
+                    <div class="grid">
+                        <div>&nbsp;</div>
+                        <div>
+                            <input class="button" type="button" name="up" id="up" onclick="send('up')" value="UP" />
+                        </div>
+                        <div>&nbsp;</div>
+                        <div>
+                            <input class="button" type="button" name="left" id="left" onclick="send('left')" value="LEFT" />
+                        </div>
+                        <div>
+                            <input class="button" type="button" name="stop" id="stop" onclick="send('stop')" value="STOP" />
+                        </div>
+                        <div>
+                            <input class="button" type="button" name="right" id="right" onclick="send('right')" value="RIGHT" />
+                        </div>
+                        <div>
+                            <input class="button" type="button" name="calibrate" id="calibrate" onclick="send('cal');" value="CALIBRATE" />
+                        </div>
+                        <div>
+                            <input class="button" type="button" name="down" id="down" onclick="send('down')" value="DOWN" />
+                        </div>
+                        <div><input class="button" type="button" name="park" id="park" onclick="send('park')" value="PARK" /></div>
+                    </div>
                 </form>
                 <div id="input">
                     <span>
@@ -46,9 +66,15 @@
                         <input type="number" id="tel" value="0" onchange="draw();" /><br />
                     </div>
                 </div>
-            </div>
-            <div class="box" id="info">
-                <textarea class="fill" id="infobox"></textarea>
+                <div class="status" id="set">
+                    <form action="#">
+                        <span>Azimuth: </span>
+                        <input type="text" name="azimuth" id="azimuth" size="5"/>
+                        <span> Elevation: </span>
+                        <input type="text" name="elevation" id="elevation" size="5"/>
+                        <input type="button" name="go" id="go" onclick="return;" value="Go there!" /></div>
+                    </form>
+                </div>
             </div>
         </div>
     </body>
@@ -239,7 +265,7 @@
                 };
                 xhttp.open("GET", "./p", true);
                 xhttp.send();
-            }, 2000);
+            }, 1000);
 
             
             draw();
