@@ -28,21 +28,19 @@ p {
 }
 
 .page {
-    border: 1px solid #0F3376;
     text-align: center;
-    width: 95%;
     overflow: auto;
-    display: inline-flex;
-    flex-direction: row;
     justify-content: center;
     padding: 10px;
+    display: flex;
+    align-items: stretch;
+    flex-direction: row;
 }
 
 .box {
     float: left;
-    height: 500px;
-    width: 500px;
-    border: 1px solid #0F3376;
+    max-height: 500px;
+    max-width: 500px;
     padding: 10px;
     display: flex;
     margin: auto;

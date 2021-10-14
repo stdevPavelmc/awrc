@@ -8,7 +8,7 @@
         <link rel="icon" type="image/x-icon" href="favimap.ico" />
     </head>
     <body>
-        <div class="page">
+        <div class="page" id="page">
             <canvas class="box" id="map">
                 <p>Sorry, canvas not supported on this browser</p>
             </canvas>
@@ -106,10 +106,19 @@
                 return;
             }
 
+            // set dynamic width 
+            var w = document.body.clientWidth;
+            if (w > 1000) {
+                canvas.width = 500;
+            }
+            else {
+                canvas.width = w * 0.8;
+            }
+
             // force width as base
             canvas.height = canvas.width;
             var center = canvas.width / 2;
-            var full = center * 0.9;
+            var full = center * 0.93;
 
             // clean and move the coordinates to the center position
             ctx.clearRect(0, 0, center * 2, center * 2);
@@ -152,10 +161,10 @@
             ctx.font = 'bold 14px serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText("N", 0, -full * 1.05, tw);
-            ctx.fillText("S", 0, full * 1.05, tw);
-            ctx.fillText("W", -full * 1.05, 0, tw);
-            ctx.fillText("E", full * 1.05, 0, tw);
+            ctx.fillText("N", 0, -full * 1.01, tw);
+            ctx.fillText("S", 0, full * 1.01, tw);
+            ctx.fillText("W", -full * 1.01, 0, tw);
+            ctx.fillText("E", full * 1.01, 0, tw);
             ctx.closePath();
             ctx.stroke();
 
@@ -196,7 +205,7 @@
             ctx.save();
         }
 
-        // from stack overflow... ;)  
+        // from stack overflow...  
         function polarToCartesian(centerX, centerY, radius, angleInDegrees)
         {
             var angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
@@ -227,6 +236,15 @@
 
         function main()
         {
+            var page = document.getElementById("page");
+            if (document.body.clientWidth > 1000)
+            {
+                page.style.flexDirection = "row";
+            }
+            else
+            {
+                page.style.flexDirection = "column";
+            }
             //update the position
             setInterval(function () {
                 // refes
@@ -266,8 +284,7 @@
                 xhttp.open("GET", "./p", true);
                 xhttp.send();
             }, 1000);
-
-            
+           
             draw();
         }
 
