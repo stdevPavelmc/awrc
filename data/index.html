@@ -67,12 +67,12 @@
                     </div>
                 </div>
                 <div class="status" id="set">
-                    <form action="#">
+                    <form action="#" onsubmit="set(); return false;">
                         <span>Azimuth: </span>
-                        <input type="text" name="azimuth" id="azimuth" size="5"/>
+                        <input type="text" name="saz" id="saz" size="5"/>
                         <span> Elevation: </span>
-                        <input type="text" name="elevation" id="elevation" size="5"/>
-                        <input type="button" name="go" id="go" onclick="return;" value="Go there!" /></div>
+                        <input type="text" name="sel" id="sel" size="5"/>
+                        <input type="submit" name="go" id="go" value="Go there!"/></div>
                     </form>
                 </div>
             </div>
@@ -90,6 +90,22 @@
             var tel = document.getElementById("tel");
             target.innerHTML = "Azimuth: " + taz.value + "<br />Elevation: " + tel.value;
             actual.innerHTML = "Azimuth: " + az.value + "<br />Elevation: " + el.value;
+        }
+
+        // set to a particular position
+        function set()
+        {
+            var az = document.getElementById('saz');
+            var el = document.getElementById('sel');
+
+            var http = new XMLHttpRequest();
+            http.open("get", "/set?saz=" + az.value + "&sel=" + el.value, true);
+            //http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            // var params = "saz=" + az.value + "&sel=" + el.value;
+            http.send();
+            http.onload = function () {
+                alert(http.responseText);
+            }
         }
 
         // draw the polar coordinates with the two circle
@@ -234,6 +250,7 @@
             xhttp.send();
         }
 
+        // main function
         function main()
         {
             var page = document.getElementById("page");

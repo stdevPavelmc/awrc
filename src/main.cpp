@@ -1290,6 +1290,49 @@ void serveRight(AsyncWebServerRequest *request)
     wcmd = RIGHT;
 }
 
+// move to a specific position
+void setPosition(AsyncWebServerRequest *request)
+{
+    //vars
+    String saz = "";
+    String sel = "";
+
+    // get values if passed
+    if (request->hasParam("saz"))
+        saz = request->getParam("saz")->value();
+    if (request->hasParam("sel"))
+        sel = request->getParam("sel")->value();
+
+    // check if az/el was passed
+    if (saz != "" && sel != "")
+    {
+#ifdef DEBUG
+        Serial.println(F("Got coordinates from serial"));
+#endif
+
+        // set target position
+        tazimuth = saz.toFloat();
+        televation = sel.toFloat();
+
+        // check limits
+        if (tazimuth > MAXAZIMUTH)
+            tazimuth = MAXAZIMUTH;
+        if (tazimuth < MINAZIMUTH)
+            tazimuth = MINAZIMUTH;
+        if (televation > MAXELEVATION)
+            televation = MAXELEVATION;
+        if (televation < MINELEVATION)
+            televation = MINELEVATION;
+
+        // force move
+        state = TRACKING;
+        need2move();
+    }
+
+    // send ok then
+    request->send(200, "text/plain", F("ok SET"));
+}
+
 // setup the web server
 void webserver_setup()
 {
@@ -1312,6 +1355,7 @@ void webserver_setup()
     webServer.on("/down", HTTP_GET, serveDown);
     webServer.on("/left", HTTP_GET, serveLeft);
     webServer.on("/right", HTTP_GET, serveRight);
+    webServer.on("/set", HTTP_GET, setPosition);
 
     // not found
     webServer.onNotFound(notFound);
