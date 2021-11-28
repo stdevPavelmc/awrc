@@ -44,7 +44,7 @@
                             <input class="button" type="button" name="right" id="right" onclick="send('right')" value="RIGHT" />
                         </div>
                         <div>
-                            <input class="button" type="button" name="calibrate" id="calibrate" onclick="send('cal');" value="CALIBRATE" />
+                            &nbsp;
                         </div>
                         <div>
                             <input class="button" type="button" name="down" id="down" onclick="send('down')" value="DOWN" />
@@ -72,8 +72,14 @@
                         <input type="text" name="saz" id="saz" size="5"/>
                         <span> Elevation: </span>
                         <input type="text" name="sel" id="sel" size="5"/>
-                        <input type="submit" name="go" id="go" value="Go there!"/></div>
+                        <input type="submit" name="go" id="go" value="Go there!"/>
                     </form>
+                </div>
+            </div>
+            <div class="ibox" id="bmks">
+                <H2>Bookmarks!</H2></br>
+                <div class="bookmarks" id="bookmarks">
+                    &nbsp;
                 </div>
             </div>
         </div>
@@ -104,7 +110,7 @@
             // var params = "saz=" + az.value + "&sel=" + el.value;
             http.send();
             http.onload = function () {
-                alert(http.responseText);
+                console.log(http.responseText);
             }
         }
 
@@ -250,6 +256,52 @@
             xhttp.send();
         }
 
+        // set the bookmark as target
+        function goBookmark(t)
+        {
+            var az = document.getElementById('saz');
+            var el = document.getElementById('sel');
+
+            az.value = t.a;
+            el.value = t.e;
+
+            set();
+        };
+
+        // get the bookmarks and display it
+        function getBookmarks()
+        {
+            // refs
+            var bmks = document.getElementById("bookmarks");
+
+            // get it
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function () {
+                if (this.readyState == 4 && this.status == 200) {
+                    // all good parse
+                    var b = JSON.parse(this.responseText);
+                    console.log(b);
+                    var bmk = b.b;
+                    bmk.forEach(function (t) {
+                        console.log(t);
+
+                        var button = document.createElement('button');
+                        button.type = 'button';
+                        button.innerHTML = t.n;
+                        button.className = 'btn-bmk';
+
+                        button.onclick = function () {
+                            goBookmark(t);
+                        };
+
+                        bmks.appendChild(button);
+                    });
+                }
+            };
+            xhttp.open("GET", "b.txt", true);
+            xhttp.send();
+        }
+
         // main function
         function main()
         {
@@ -262,6 +314,7 @@
             {
                 page.style.flexDirection = "column";
             }
+
             //update the position
             setInterval(function () {
                 // refes
@@ -301,7 +354,10 @@
                 xhttp.open("GET", "./p", true);
                 xhttp.send();
             }, 1000);
-           
+
+            //update the bookmarks
+            getBookmarks();
+
             draw();
         }
 

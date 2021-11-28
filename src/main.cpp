@@ -78,8 +78,7 @@ const char pstatus[] PROGMEM = "{\"az\": \"%az%\", \"el\": \"%el%\", \"taz\": \"
 ******************************/
 
 // split a string in parts by a given separator
-String
-getValue(String data, char separator, int index)
+String getValue(String data, char separator, int index)
 {
     int found = 0;
     int strIndex[] = {0, -1};
@@ -1143,6 +1142,51 @@ void servePosition(AsyncWebServerRequest *request)
 #endif
 }
 
+// server bookmarks
+void serveBookmarks(AsyncWebServerRequest *request)
+{
+    // vars results
+    String result = "{\"b\": [";
+
+    // list all files on the b directory
+    Dir dir = LittleFS.openDir("/bmk");
+    String line = "";
+    byte counter = 0;
+    while (dir.next())
+    {
+        // dir.fileName();
+        if (dir.isFile() && dir.fileSize() > 0)
+        {
+            File f = dir.openFile("r");
+            String line = f.readStringUntil('#');
+            f.close();
+
+            // split the 
+            String n = getValue(line, 37, 0); // 37 is '%'
+            String a = getValue(line, 37, 1);
+            String e = getValue(line, 37, 2);
+
+            // more than one line
+            if (counter > 0)
+                result += ",";
+
+            // actual data
+            result += "{\"f\":\"" + String(dir.fileName()) + "\", \"n\":\"" + n + "\", \"a\":\"" + a + "\", \"e\":\"" + e + "\"}";
+
+            // counter
+            counter += 1;
+        }
+    }
+
+    result += "]}"; 
+
+    request->send_P(200, "text/txt", result.c_str());
+
+#ifdef DEBUG
+    Serial.println("/b");
+#endif
+}
+
 // process web commands
 void webCommands()
 {
@@ -1346,6 +1390,9 @@ void webserver_setup()
 
     // Get target position (JSON)
     webServer.on("/p", HTTP_GET, servePosition);
+
+    // get the bookmarks
+    webServer.on("/b.txt", HTTP_GET, serveBookmarks);
 
     // Commands
     webServer.on("/cal", HTTP_GET, serveCalibration);

@@ -35,6 +35,7 @@ p {
     display: flex;
     align-items: stretch;
     flex-direction: row;
+    flex-wrap: wrap;
 }
 
 .box {
@@ -55,7 +56,6 @@ p {
     width: 100%;
     padding-bottom: 20px;
     display: flex;
-    border: 1px solid navy;
 }
 
 .status_row {
@@ -124,10 +124,10 @@ p {
 }
 
 .grid {
-  display: grid;
-  grid-gap: 1px;
-  grid-template-columns: repeat(3, 1fr);
-  vertical-align: middle;
+    display: grid;
+    grid-gap: 1px;
+    grid-template-columns: repeat(3, 1fr);
+    vertical-align: middle;
 }
 
 .grid div {
@@ -144,4 +144,14 @@ p {
     padding-top: 20px;
     width: 100%;
     text-align: center;
+}
+
+.bookmarks {
+    flex: auto;
+    flex-wrap: wrap;
+}
+
+.btn-bmk {
+    margin: 5px;
+    padding: 10px;
 }
