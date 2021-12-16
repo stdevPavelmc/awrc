@@ -466,6 +466,20 @@ void calibration()
     state = IDLE;
 }
 
+// '\dump_state' command
+String dump_state()
+{
+    String endc = "\n";
+    String result = String("0") + endc;
+    result += String("1") + endc;
+    result += String(MINAZIMUTH) + endc;
+    result += String(MAXAZIMUTH) + endc;
+    result += String(MINELEVATION) + endc;
+    result += String(MAXELEVATION) + endc;
+
+    return result;
+}
+
 // handle the client messages
 String msg_handle(char *data)
 {
@@ -528,6 +542,11 @@ String msg_handle(char *data)
     case 68:  // D
         move_down();
         state = MANUAL;
+        break;
+
+    case 92: // \dump_state
+        // call the dump procedure
+        result = dump_state();
         break;
 
     default:
